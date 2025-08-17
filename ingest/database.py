@@ -4,26 +4,41 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.types import UserDefinedType
 
-# Lee DATABASE_URL del entorno (Heroku la define)
 database_url = os.getenv("DATABASE_URL")
-
-# Normaliza prefijo de Heroku para SQLAlchemy si viene como postgres://
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-# Tipo VECTOR para pgvector (1536 dims)
 class Vector(UserDefinedType):
+    cache_ok = True  # importante para SQLAlchemy 2.x
+
     def get_col_spec(self):
         return "VECTOR(1536)"
 
-# Crea engine con SSL obligatorio (Heroku)
+    def bind_processor(self, dialect):
+        def process(value):
+            if value is None:
+                return None
+            # Esperamos una lista/iterable de números -> '[v1, v2, ...]'
+            try:
+                return "[" + ", ".join(str(float(x)) for x in value) + "]"
+            except Exception:
+                # Si el embedding viene corrupto, guarda NULL
+                return None
+        return process
+
+    def result_processor(self, dialect, coltype):
+        def process(value):
+            # pgvector devuelve como texto '[...]'; si lo quisieras de vuelta como lista, parsea aquí.
+            return value
+        return process
+
 engine = create_engine(
     database_url,
     pool_pre_ping=True,
-    connect_args={"sslmode": "require"}  # clave en Heroku Postgres
+    connect_args={"sslmode": "require"}
 )
 
-# Habilita extensiones (idempotente, fuera de transacción)
+# Extensiones
 with engine.connect() as conn:
     conn = conn.execution_options(isolation_level="AUTOCOMMIT")
     conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")

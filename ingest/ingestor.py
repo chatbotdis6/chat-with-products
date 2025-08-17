@@ -200,7 +200,7 @@ class CSVIngestor:
                 ]
                 categorias = [c for c in categorias if c and isinstance(c, str)]
 
-                nombre_producto = row.get("nombre_producto") or ""
+                nombre_producto = str(row.get("nombre_producto") or "").strip()
                 precio = parse_precio(row.get("precio_unidad"))
 
                 emb = generar_embedding(nombre_producto)  # embedding solo para nuevos

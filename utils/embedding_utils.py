@@ -17,9 +17,17 @@ def generar_embedding(texto: str) -> list:
         list: Vector de embedding o None si falla.
     """
     try:
+        if texto is None:
+            return None
+
+        # Saneado robusto de entrada (evita errores con floats/None)
+        s = str(texto).strip().replace("\n", " ")
+        if not s:
+            return None
+
         response = openai_client.embeddings.create(
             model="text-embedding-ada-002",
-            input=texto.strip().replace("\n", " ")
+            input=s
         )
         return response.data[0].embedding
     except Exception as e:
