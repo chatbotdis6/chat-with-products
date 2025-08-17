@@ -1,0 +1,9 @@
+dateparser==1.2.1
+pandas==2.2.3
+openpyxl==3.1.5
+openai==1.77.0
+sqlalchemy==2.0.40
+psycopg2-binary==2.9.10
+python-dotenv==1.1.0
+boto3==1.38.43
+streamlit==1.46.0

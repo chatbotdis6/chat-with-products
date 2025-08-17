@@ -1,3 +1,5 @@
+# ingest/ingestor.py
+import os
 import pandas as pd
 import logging
 import sys
@@ -18,7 +20,6 @@ from utils.embedding_utils import generar_embedding
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # --- Utilidades robustas ---
-
 def limpiar_booleano(valor):
     if pd.isna(valor):
         return False
@@ -52,7 +53,6 @@ def to_int(val):
         return 0
 
 # --- Clase de Ingestión ---
-
 class CSVIngestor:
     def __init__(self, proveedores_file: str, productos_dir: str):
         self.proveedores_file = proveedores_file
@@ -60,8 +60,8 @@ class CSVIngestor:
         self.session = SessionLocal()
 
     def create_tables(self):
-        logging.info("Creando tablas en la base de datos...")
-        Base.metadata.drop_all(engine)
+        logging.info("Creando tablas si no existen...")
+        # NO hacer drop_all en producción
         Base.metadata.create_all(engine)
 
     def reset_database(self):
@@ -129,7 +129,7 @@ class CSVIngestor:
                 embedding = generar_embedding(texto_embedding)
 
                 logging.info(
-                    f"[Fila {idx}] Insertando producto: '{nombre_producto}', marca='{row.get('Marca')}', precio={precio}, proveedor_id={proveedor_id}"
+                    f"[Fila {idx}] Insertando producto: '{nombre_producto}', marca='{row.get('marca')}', precio={precio}, proveedor_id={proveedor_id}"
                 )
 
                 producto = Producto(
@@ -152,25 +152,21 @@ class CSVIngestor:
                 self.session.commit()
 
             except Exception as e:
-                logging.exception(f"[Fila {idx}] Error al insertar producto '{row.get('Producto')}': {e}")
+                logging.exception(f"[Fila {idx}] Error al insertar producto '{row.get('nombre_producto')}': {e}")
                 self.session.rollback()
 
     def insert_productos_from_all_files(self):
         pattern = Path(self.productos_dir) / "*_productos.csv"
         archivos = glob.glob(str(pattern))
-
         for filepath in archivos:
             try:
                 filename = Path(filepath).stem
                 id_str = filename.split("_")[0]
                 id_proveedor = int(id_str)
-
                 logging.info(f"Cargando productos del proveedor {id_proveedor} desde '{filepath}'")
                 df = pd.read_csv(filepath, encoding="latin1")
-                df["id_proveedor"] = id_proveedor  # asegurar que todas las filas lo incluyan
-
+                df["id_proveedor"] = id_proveedor
                 self.insert_productos(df)
             except Exception as e:
                 logging.exception(f"Error procesando archivo '{filepath}': {e}")
-        
         logging.info("Ingestión completada.")

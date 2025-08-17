@@ -1,26 +1,32 @@
+# ingest/database.py
 import os
-from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.types import UserDefinedType
 
-load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Lee DATABASE_URL del entorno (Heroku la define)
+database_url = os.getenv("DATABASE_URL")
 
-# Define el tipo VECTOR para SQLAlchemy
+# Normaliza prefijo de Heroku para SQLAlchemy si viene como postgres://
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+# Tipo VECTOR para pgvector (1536 dims)
 class Vector(UserDefinedType):
     def get_col_spec(self):
         return "VECTOR(1536)"
 
-# Crea el engine
-engine = create_engine(DATABASE_URL)
+# Crea engine con SSL obligatorio (Heroku)
+engine = create_engine(
+    database_url,
+    pool_pre_ping=True,
+    connect_args={"sslmode": "require"}  # clave en Heroku Postgres
+)
 
-# Asegura que la extensión pgvector está habilitada
+# Habilita extensiones (idempotente, fuera de transacción)
 with engine.connect() as conn:
-    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-    conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+    conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+    conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
+    conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
-
-# Crea sesión
 SessionLocal = sessionmaker(bind=engine)
