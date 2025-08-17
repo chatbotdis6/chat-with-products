@@ -143,7 +143,7 @@ class CSVIngestor:
                     prov.calificacion_usuarios = to_float(row.get("calificacion_usuarios"))
                     prov.nivel_membresia = to_float(row.get("nivel_membresia"))
             except Exception as e:
-                logging.warning(f"Error procesando proveedor: {e}")
+                logging.warning(f"Error procesando proveedor id_proveedor={row.get('id_proveedor')}: {e}")
         try:
             self.session.commit()
         except SQLAlchemyError as e:
@@ -165,7 +165,6 @@ class CSVIngestor:
         # Normaliza tipos/columnas
         df = df_prod.copy()
         df["id_proveedor"] = proveedor_id
-        # id del producto tal y como viene en el CSV
         if "id_producto" not in df.columns:
             logging.error("El CSV no contiene la columna 'id_producto'. No se puede sincronizar.")
             return
@@ -177,9 +176,9 @@ class CSVIngestor:
 
         # IDs existentes en BD para ese proveedor
         existing_ids = set(
-            x for (x,) in self.session.execute(
+            self.session.execute(
                 select(Producto.id_producto_csv).where(Producto.id_proveedor == proveedor_id)
-            ).all()
+            ).scalars().all()
         )
 
         to_insert = csv_ids - existing_ids
@@ -188,22 +187,28 @@ class CSVIngestor:
 
         logging.info(f"[Proveedor {proveedor_id}] nuevos={len(to_insert)} actualizar={len(to_update)} borrar={len(to_delete)}")
 
-        # --- INSERTA NUEVOS ---
+        # --- INSERTA NUEVOS (uno a uno + flush para evitar batch INSERT) ---
         for _, row in df[df["id_producto_csv"].isin(to_insert)].iterrows():
             try:
-                categorias = [
+                # Categorías limpias y serializables
+                cat_raw = [
                     row.get("categoria_1"),
                     row.get("categoria_2"),
                     row.get("categoria_3"),
                     row.get("categoria_4"),
                     row.get("categoria_5"),
                 ]
-                categorias = [c for c in categorias if c and isinstance(c, str)]
+                categorias = [str(c).strip() for c in cat_raw if isinstance(c, str) and c.strip()]
 
                 nombre_producto = str(row.get("nombre_producto") or "").strip()
                 precio = parse_precio(row.get("precio_unidad"))
+                precio = float(precio) if (precio is not None and not pd.isna(precio)) else 0.0
 
-                emb = generar_embedding(nombre_producto)  # embedding solo para nuevos
+                ua = parse_fecha_espanol(row.get("ultima_actualizacion"))
+                if ua is not None and hasattr(ua, "date"):
+                    ua = ua.date()
+
+                emb = generar_embedding(nombre_producto)  # si falla -> None (se guarda NULL)
 
                 prod = Producto(
                     id_proveedor=proveedor_id,
@@ -213,22 +218,34 @@ class CSVIngestor:
                     marca=row.get("marca"),
                     presentacion_venta=row.get("presentacion_venta"),
                     unidad_venta=row.get("unidad_venta"),
-                    precio_unidad=precio if precio is not None else 0.0,
+                    precio_unidad=precio,
                     moneda=row.get("moneda"),
                     categorias=categorias,
-                    ultima_actualizacion=parse_fecha_espanol(row.get("ultima_actualizacion")),
+                    ultima_actualizacion=ua,
                     vigencia=row.get("vigencia"),
                     proveedor=row.get("proveedor"),
                     embedding=emb
                 )
                 self.session.add(prod)
+                # Evita el INSERT en lote que causaba conflicto de tipos
+                self.session.flush()
+
             except Exception as e:
-                logging.exception(f"Error insertando producto nuevo (id_producto=%s): %s", row.get('id_producto'), e)
+                logging.exception(
+                    "Error insertando producto nuevo (id_proveedor=%s, id_producto=%s): %s",
+                    proveedor_id, row.get('id_producto'), e
+                )
 
         # --- ACTUALIZA EXISTENTES (precio_unidad y campos básicos) ---
         for _, row in df[df["id_producto_csv"].isin(to_update)].iterrows():
             try:
                 precio = parse_precio(row.get("precio_unidad"))
+                precio = float(precio) if (precio is not None and not pd.isna(precio)) else 0.0
+
+                ua = parse_fecha_espanol(row.get("ultima_actualizacion"))
+                if ua is not None and hasattr(ua, "date"):
+                    ua = ua.date()
+
                 stmt = (
                     update(Producto)
                     .where(
@@ -236,22 +253,18 @@ class CSVIngestor:
                         Producto.id_producto_csv == to_int(row.get("id_producto"))
                     )
                     .values(
-                        precio_unidad=precio if precio is not None else 0.0,
+                        precio_unidad=precio,
                         moneda=row.get("moneda"),
-                        ultima_actualizacion=parse_fecha_espanol(row.get("ultima_actualizacion")),
+                        ultima_actualizacion=ua,
                         vigencia=row.get("vigencia"),
-                        # Si quieres actualizar también nombre/marca/etc., descomenta:
-                        # nombre_producto=row.get("nombreProducto") or "",
-                        # marca=row.get("marca"),
-                        # presentacion_venta=row.get("presentacion_venta"),
-                        # unidad_venta=row.get("unidad_venta"),
-                        # categorias=...
-                        # proveedor=row.get("proveedor"),
                     )
                 )
                 self.session.execute(stmt)
             except Exception as e:
-                logging.exception(f"Error actualizando id_producto=%s: %s", row.get('id_producto'), e)
+                logging.exception(
+                    "Error actualizando producto (id_proveedor=%s, id_producto=%s): %s",
+                    proveedor_id, row.get('id_producto'), e
+                )
 
         # --- ELIMINA LOS QUE YA NO ESTÁN EN EL CSV DEL DÍA ---
         if to_delete:
@@ -263,14 +276,20 @@ class CSVIngestor:
                     )
                 )
             except Exception as e:
-                logging.exception(f"Error eliminando {len(to_delete)} productos: {e}")
+                logging.exception(
+                    "Error eliminando %s productos (id_proveedor=%s): %s",
+                    len(to_delete), proveedor_id, e
+                )
 
         # Commit final
         try:
             self.session.commit()
         except SQLAlchemyError as e:
             self.session.rollback()
-            logging.error(f"Error en commit de sync productos: {e}")
+            logging.error(
+                "Error en commit de sync productos (id_proveedor=%s) [nuevos=%s, actualizar=%s, borrar=%s]: %s",
+                proveedor_id, len(to_insert), len(to_update), len(to_delete), e
+            )
 
     # ---------- Compatibilidad (legacy) ----------
     def load_csv(self, path: str) -> pd.DataFrame:
@@ -313,5 +332,8 @@ class CSVIngestor:
                 df["id_proveedor"] = id_proveedor
                 self.sync_productos_from_csv(df, id_proveedor)
             except Exception as e:
-                logging.exception(f"Error procesando archivo '{filepath}': {e}")
+                logging.exception(
+                    "Error procesando archivo '%s' (id_proveedor=%s): %s",
+                    filepath, id_proveedor, e
+                )
         logging.info("Ingestión completada.")
