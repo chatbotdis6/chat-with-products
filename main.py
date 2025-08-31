@@ -2,7 +2,7 @@
 import os
 import logging
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo  # requiere 'tzdata' en requirements
 import boto3
 import pandas as pd
@@ -22,8 +22,9 @@ JOB_TZ = os.getenv("JOB_TZ", "Europe/Madrid")
 
 
 def hoy_str(tz_name: str = JOB_TZ) -> str:
-    """Devuelve hoy como 'YYYY_MM_DD' en la zona horaria indicada."""
-    return datetime.now(ZoneInfo(tz_name)).strftime("%Y_%m_%d")
+    """Devuelve AYER como 'YYYY_MM_DD' en la zona horaria indicada."""
+    dt = datetime.now(ZoneInfo(tz_name)) - timedelta(days=1)
+    return dt.strftime("%Y_%m_%d")
 
 
 def descargar_csv_desde_s3(s3_client, bucket, key) -> pd.DataFrame:
