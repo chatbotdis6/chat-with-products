@@ -136,6 +136,130 @@ SYSTEM_PROMPT = (
 logger.info("📋 System prompt cargado con éxito")
 logger.debug(f"📝 Longitud del system prompt: {len(SYSTEM_PROMPT)} caracteres")
 
+# ========== SYSTEM PROMPTS PARA ROLES ESPECIALIZADOS ==========
+
+SYSTEM_PROMPT_ROUTER = (
+    "Eres un clasificador de intenciones para The Hap & D Company.\n"
+    "Tu ÚNICA tarea: determinar qué tipo de consulta hace el usuario.\n\n"
+    "Categorías válidas:\n"
+    "1. 'busqueda_proveedores' - Usuario busca proveedores, productos, contactos\n"
+    "2. 'chef' - Pide recetas, técnicas de cocina, preparación de platillos\n"
+    "3. 'nutriologo' - Pregunta sobre calorías, nutrición, información nutricional\n"
+    "4. 'bartender' - Busca cócteles, recetas de bebidas, maridajes\n"
+    "5. 'barista' - Técnicas de café, preparación de café, métodos de extracción\n"
+    "6. 'ingeniero_alimentos' - Conservación, almacenamiento, inocuidad, vida útil\n"
+    "7. 'fuera_alcance' - Pregunta completamente fuera del sector gastronómico\n\n"
+    "Responde SOLO con el nombre de la categoría, nada más.\n"
+    "Ejemplos:\n"
+    "Usuario: 'Busco mantequilla' → busqueda_proveedores\n"
+    "Usuario: 'Quiero contacto de proveedores de aceite' → busqueda_proveedores\n"
+    "Usuario: '¿Cómo hacer fresas Dubai?' → chef\n"
+    "Usuario: 'Dame una receta de tiramisú' → chef\n"
+    "Usuario: '¿Cuántas calorías tiene la quinoa?' → nutriologo\n"
+    "Usuario: '¿Es nutritivo el aguacate?' → nutriologo\n"
+    "Usuario: 'Coctel con mezcal y frutos rojos' → bartender\n"
+    "Usuario: 'Receta de margarita' → bartender\n"
+    "Usuario: '¿Cómo se hace cold brew?' → barista\n"
+    "Usuario: 'Mejor método para espresso' → barista\n"
+    "Usuario: '¿Cuánto dura la mantequilla sin refrigerar?' → ingeniero_alimentos\n"
+    "Usuario: '¿Cómo conservar el salmón?' → ingeniero_alimentos\n"
+    "Usuario: '¿Quién ganó el mundial?' → fuera_alcance\n"
+    "Usuario: 'Dame el clima de hoy' → fuera_alcance"
+)
+
+SYSTEM_PROMPT_CHEF = (
+    "Eres un chef profesional de The Hap & D Company.\n"
+    "Tu rol: Dar recetas e ideas de preparación BREVES (máximo 3-4 líneas).\n\n"
+    "Formato obligatorio:\n"
+    "'[Ingredientes principales breves] + [Pasos ultra-resumidos en 1-2 líneas]. "
+    "¿Quieres que te conecte con proveedores de [ingrediente clave]? 😊'\n\n"
+    "Ejemplo:\n"
+    "Usuario: 'Receta de Fresas Dubai'\n"
+    "Tú: 'Para Fresas Dubai necesitas: fresas frescas, chocolate semiamargo y pistache troceado. "
+    "Derrite el chocolate, baña las fresas, decora con pistache y refrigera 30 min. 🍓 "
+    "¿Quieres proveedores de fresas o chocolate?'\n\n"
+    "IMPORTANTE:\n"
+    "- Máximo 3-4 líneas de respuesta\n"
+    "- SIEMPRE termina preguntando si quiere proveedores\n"
+    "- Usa emojis relacionados con la comida 🍓🍫🥑\n"
+    "- Sé práctico y directo, sin teoría extensa"
+)
+
+SYSTEM_PROMPT_NUTRIOLOGO = (
+    "Eres un nutriólogo profesional de The Hap & D Company.\n"
+    "Tu rol: Dar información nutricional BREVE y práctica.\n\n"
+    "Formato obligatorio:\n"
+    "'[Alimento] aporta [calorías] kcal [porción], [dato relevante de macros/beneficios]. "
+    "¿Quieres proveedores de [alimento]? 😊'\n\n"
+    "Ejemplo:\n"
+    "Usuario: '¿Cuántas calorías tiene la quinoa?'\n"
+    "Tú: 'Una taza cocida de quinoa (185g) aporta aprox. 220 kcal, "
+    "rica en proteína (8g) y fibra (5g), además es libre de gluten. 🌾 "
+    "¿Quieres proveedores de quinoa?'\n\n"
+    "IMPORTANTE:\n"
+    "- Máximo 2-3 líneas\n"
+    "- SIEMPRE ofrece proveedores al final\n"
+    "- Datos concisos (calorías + 1-2 macros o beneficios clave)\n"
+    "- Usa emojis relacionados 🥗🥑🌾"
+)
+
+SYSTEM_PROMPT_BARTENDER = (
+    "Eres un bartender profesional de The Hap & D Company.\n"
+    "Tu rol: Dar recetas de cócteles y maridajes BREVES.\n\n"
+    "Formato obligatorio:\n"
+    "'[Ingredientes con medidas] + [Preparación breve]. 🍹 "
+    "¿Quieres proveedores de [ingrediente principal]?'\n\n"
+    "Ejemplo:\n"
+    "Usuario: 'Coctel con mezcal y frutos rojos'\n"
+    "Tú: 'Prueba este: 60ml mezcal, 30ml jugo de arándano, 15ml jarabe natural, "
+    "hielo y rodaja de naranja. Agita con hielo y sirve en vaso corto. 🍹 "
+    "¿Quieres proveedores de mezcal o frutos rojos?'\n\n"
+    "IMPORTANTE:\n"
+    "- Máximo 3-4 líneas\n"
+    "- SIEMPRE ofrece proveedores al final\n"
+    "- Incluye medidas precisas (ml, oz)\n"
+    "- Usa emojis de bebidas 🍹🍸🥃"
+)
+
+SYSTEM_PROMPT_BARISTA = (
+    "Eres un barista profesional de The Hap & D Company.\n"
+    "Tu rol: Explicar técnicas de café BREVES y prácticas.\n\n"
+    "Formato obligatorio:\n"
+    "'[Técnica resumida en 2-3 pasos clave]. ☕ "
+    "¿Quieres proveedores de café [tipo de café]?'\n\n"
+    "Ejemplo:\n"
+    "Usuario: '¿Cómo hacer cold brew para cafetería?'\n"
+    "Tú: 'Usa café molido grueso y agua fría en proporción 1:5. "
+    "Deja reposar 12-18 horas en refrigeración, filtra con malla fina "
+    "y sirve sobre hielo. ☕ ¿Quieres proveedores de café en grano?'\n\n"
+    "IMPORTANTE:\n"
+    "- Máximo 3-4 líneas\n"
+    "- SIEMPRE ofrece proveedores de café\n"
+    "- Sé técnico pero accesible\n"
+    "- Usa emoji de café ☕"
+)
+
+SYSTEM_PROMPT_INGENIERO = (
+    "Eres un ingeniero en alimentos de The Hap & D Company.\n"
+    "Tu rol: Explicar conservación e inocuidad de forma BREVE.\n\n"
+    "Formato obligatorio:\n"
+    "'[Producto] se conserva [tiempo] en [condiciones]. [Dato adicional de seguridad]. "
+    "¿Quieres proveedores de [producto]? 😊'\n\n"
+    "Ejemplo:\n"
+    "Usuario: '¿Cuánto dura la mantequilla sin refrigerar?'\n"
+    "Tú: 'Mantequilla a temperatura ambiente (20-25°C) dura hasta 2 días máximo. "
+    "En refrigeración (4°C) se conserva hasta 4 semanas bien sellada. "
+    "Fuera del frío puede oxidarse y desarrollar sabor rancio. 🧈 "
+    "¿Quieres proveedores de mantequilla?'\n\n"
+    "IMPORTANTE:\n"
+    "- Máximo 3-4 líneas\n"
+    "- SIEMPRE ofrece proveedores al final\n"
+    "- Incluye temperaturas y tiempos específicos\n"
+    "- Usa emojis relacionados 🧈🥛🍖"
+)
+
+logger.info("📋 System prompts especializados cargados")
+
 # ========== ESTADO GLOBAL PARA PROVEEDORES PENDIENTES ==========
 # Usamos un dict global para mantener los proveedores ocultos por sesión de búsqueda
 _proveedores_pendientes = {}
@@ -729,13 +853,184 @@ logger.debug("   ✓ Edge agregada: tools -> assistant")
 app = graph.compile()
 logger.info("✅ Grafo compilado exitosamente")
 
+# ========== FUNCIONES MULTI-AGENTE ==========
+
+def detectar_intencion(mensaje_usuario: str) -> str:
+    """
+    Usa el LLM como router para clasificar la intención del usuario.
+    Retorna: 'busqueda_proveedores', 'chef', 'nutriologo', 'bartender', 
+             'barista', 'ingeniero_alimentos', 'fuera_alcance'
+    """
+    logger.info(f"🔍 ══════════════════════════════════════════════════════")
+    logger.info(f"🔍 DETECTANDO INTENCIÓN")
+    logger.info(f"💬 Mensaje: '{mensaje_usuario[:80]}...'")
+    
+    router_llm = ChatOpenAI(model=MODEL_NAME, temperature=0)
+    
+    response = router_llm.invoke([
+        ("system", SYSTEM_PROMPT_ROUTER),
+        ("user", mensaje_usuario)
+    ])
+    
+    intencion = response.content.strip().lower()
+    logger.info(f"🎯 Intención detectada: '{intencion}'")
+    logger.info(f"🔍 ══════════════════════════════════════════════════════")
+    
+    return intencion
+
+
+def responder_como_chef(mensaje: str, history: list) -> tuple[str, list]:
+    """Responde como Chef con recetas breves"""
+    logger.info(f"👨‍🍳 ══════════════════════════════════════════════════════")
+    logger.info(f"👨‍🍳 AGENTE: CHEF")
+    logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
+    
+    llm_chef = ChatOpenAI(model=MODEL_NAME, temperature=0.7)
+    response = llm_chef.invoke([
+        ("system", SYSTEM_PROMPT_CHEF),
+        ("user", mensaje)
+    ])
+    
+    logger.info(f"✅ Chef respondió: {len(response.content)} caracteres")
+    logger.info(f"👨‍🍳 ══════════════════════════════════════════════════════")
+    
+    # Actualizar historial
+    new_history = history + [
+        ("user", mensaje),
+        ("assistant", response.content)
+    ]
+    
+    return response.content, new_history
+
+
+def responder_como_nutriologo(mensaje: str, history: list) -> tuple[str, list]:
+    """Responde como Nutriólogo con info nutricional"""
+    logger.info(f"🥗 ══════════════════════════════════════════════════════")
+    logger.info(f"🥗 AGENTE: NUTRIÓLOGO")
+    logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
+    
+    llm_nutri = ChatOpenAI(model=MODEL_NAME, temperature=0.5)
+    response = llm_nutri.invoke([
+        ("system", SYSTEM_PROMPT_NUTRIOLOGO),
+        ("user", mensaje)
+    ])
+    
+    logger.info(f"✅ Nutriólogo respondió: {len(response.content)} caracteres")
+    logger.info(f"🥗 ══════════════════════════════════════════════════════")
+    
+    new_history = history + [
+        ("user", mensaje),
+        ("assistant", response.content)
+    ]
+    
+    return response.content, new_history
+
+
+def responder_como_bartender(mensaje: str, history: list) -> tuple[str, list]:
+    """Responde como Bartender con cócteles"""
+    logger.info(f"🍹 ══════════════════════════════════════════════════════")
+    logger.info(f"🍹 AGENTE: BARTENDER")
+    logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
+    
+    llm_bartender = ChatOpenAI(model=MODEL_NAME, temperature=0.7)
+    response = llm_bartender.invoke([
+        ("system", SYSTEM_PROMPT_BARTENDER),
+        ("user", mensaje)
+    ])
+    
+    logger.info(f"✅ Bartender respondió: {len(response.content)} caracteres")
+    logger.info(f"🍹 ══════════════════════════════════════════════════════")
+    
+    new_history = history + [
+        ("user", mensaje),
+        ("assistant", response.content)
+    ]
+    
+    return response.content, new_history
+
+
+def responder_como_barista(mensaje: str, history: list) -> tuple[str, list]:
+    """Responde como Barista con técnicas de café"""
+    logger.info(f"☕ ══════════════════════════════════════════════════════")
+    logger.info(f"☕ AGENTE: BARISTA")
+    logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
+    
+    llm_barista = ChatOpenAI(model=MODEL_NAME, temperature=0.6)
+    response = llm_barista.invoke([
+        ("system", SYSTEM_PROMPT_BARISTA),
+        ("user", mensaje)
+    ])
+    
+    logger.info(f"✅ Barista respondió: {len(response.content)} caracteres")
+    logger.info(f"☕ ══════════════════════════════════════════════════════")
+    
+    new_history = history + [
+        ("user", mensaje),
+        ("assistant", response.content)
+    ]
+    
+    return response.content, new_history
+
+
+def responder_como_ingeniero(mensaje: str, history: list) -> tuple[str, list]:
+    """Responde como Ingeniero en Alimentos con conservación"""
+    logger.info(f"🔬 ══════════════════════════════════════════════════════")
+    logger.info(f"🔬 AGENTE: INGENIERO EN ALIMENTOS")
+    logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
+    
+    llm_ingeniero = ChatOpenAI(model=MODEL_NAME, temperature=0.4)
+    response = llm_ingeniero.invoke([
+        ("system", SYSTEM_PROMPT_INGENIERO),
+        ("user", mensaje)
+    ])
+    
+    logger.info(f"✅ Ingeniero respondió: {len(response.content)} caracteres")
+    logger.info(f"🔬 ══════════════════════════════════════════════════════")
+    
+    new_history = history + [
+        ("user", mensaje),
+        ("assistant", response.content)
+    ]
+    
+    return response.content, new_history
+
+
+def responder_fuera_alcance(mensaje: str, history: list) -> tuple[str, list]:
+    """Responde cuando la pregunta está fuera de alcance"""
+    logger.warning(f"⚠️ ══════════════════════════════════════════════════════")
+    logger.warning(f"⚠️  PREGUNTA FUERA DE ALCANCE")
+    logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
+    
+    respuesta = (
+        "Mi especialidad es el sector gastronómico 😊. Puedo ayudarte con:\n\n"
+        "🔍 **Búsqueda de proveedores** de alimentos y bebidas\n"
+        "👨‍🍳 **Recetas y técnicas** de cocina\n"
+        "🥗 **Información nutricional** de alimentos\n"
+        "🍹 **Cócteles y bebidas** (recetas y maridajes)\n"
+        "☕ **Técnicas de café** y preparación\n"
+        "🔬 **Conservación de alimentos** e inocuidad\n\n"
+        "¿En qué puedo asistirte dentro del sector gastronómico?"
+    )
+    
+    logger.info(f"✅ Respuesta fuera de alcance enviada")
+    logger.warning(f"⚠️ ══════════════════════════════════════════════════════")
+    
+    new_history = history + [
+        ("user", mensaje),
+        ("assistant", respuesta)
+    ]
+    
+    return respuesta, new_history
+
 # ========== CLI DEMO ==========
 def main():
     logger.info("=" * 60)
-    logger.info("🚀 Chat demo iniciado - The Hap & D Company")
+    logger.info("🚀 Chat demo iniciado - The Hap & D Company (Multi-Agente)")
     logger.info("=" * 60)
     logger.info(f"🤖 Modelo: {MODEL_NAME}")
     logger.info(f"🔧 Tools disponibles: {len(TOOLS)}")
+    logger.info(f"📧 Buzón de quejas: {BUZON_QUEJAS}")
+    logger.info(f"🎭 Roles disponibles: Buscador, Chef, Nutriólogo, Bartender, Barista, Ingeniero")
     logger.info("=" * 60)
     
     print("Chat demo. Escribe 'salir' para terminar.")
@@ -758,34 +1053,64 @@ def main():
         logger.info(f"💬 TURNO {turn_number} - Usuario: {q}")
         logger.info(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         
-        history.append(("user", q))
-        logger.debug(f"📝 Mensaje del usuario agregado al historial")
+        # PASO 1: Detectar intención del usuario
+        intencion = detectar_intencion(q)
         
-        # Ejecutamos el grafo con el historial completo
-        logger.debug(f"📜 Historial actual tiene {len(history)} mensajes")
-        logger.info(f"🚀 Iniciando ejecución del grafo...")
-        
-        out = app.invoke({"messages": history})
-        
-        logger.info(f"✅ Grafo completó ejecución")
-        logger.debug(f"📦 Resultado contiene {len(out['messages'])} mensajes")
-        
-        # El último mensaje suele ser del asistente
-        last = out["messages"][-1]
+        # PASO 2: Rutear según la intención detectada
+        if intencion == "busqueda_proveedores":
+            # Flujo normal con tools (búsqueda de proveedores)
+            logger.info(f"🔍 Ruta: BÚSQUEDA DE PROVEEDORES (con tools)")
+            history.append(("user", q))
+            out = app.invoke({"messages": history})
+            last = out["messages"][-1]
+            print(last.content)
+            history = out["messages"]
+            
+        elif intencion == "chef":
+            # Agente Chef
+            logger.info(f"👨‍🍳 Ruta: CHEF (recetas y preparación)")
+            respuesta, history = responder_como_chef(q, history)
+            print(respuesta)
+            
+        elif intencion == "nutriologo":
+            # Agente Nutriólogo
+            logger.info(f"🥗 Ruta: NUTRIÓLOGO (información nutricional)")
+            respuesta, history = responder_como_nutriologo(q, history)
+            print(respuesta)
+            
+        elif intencion == "bartender":
+            # Agente Bartender
+            logger.info(f"🍹 Ruta: BARTENDER (cócteles y bebidas)")
+            respuesta, history = responder_como_bartender(q, history)
+            print(respuesta)
+            
+        elif intencion == "barista":
+            # Agente Barista
+            logger.info(f"☕ Ruta: BARISTA (técnicas de café)")
+            respuesta, history = responder_como_barista(q, history)
+            print(respuesta)
+            
+        elif intencion == "ingeniero_alimentos":
+            # Agente Ingeniero en Alimentos
+            logger.info(f"🔬 Ruta: INGENIERO EN ALIMENTOS (conservación)")
+            respuesta, history = responder_como_ingeniero(q, history)
+            print(respuesta)
+            
+        elif intencion == "fuera_alcance":
+            # Respuesta para temas fuera del sector gastronómico
+            logger.warning(f"⚠️  Ruta: FUERA DE ALCANCE")
+            respuesta, history = responder_fuera_alcance(q, history)
+            print(respuesta)
+            
+        else:
+            # Fallback si el router devuelve algo inesperado
+            logger.error(f"❌ Intención desconocida: '{intencion}'")
+            respuesta = "Disculpa, no entendí tu consulta. ¿Puedes reformularla? 😊"
+            print(respuesta)
+            history.append(("user", q))
+            history.append(("assistant", respuesta))
         
         logger.info(f"✅ TURNO {turn_number} completado")
-        logger.debug(f"📤 Tipo de respuesta: {type(last).__name__}")
-        
-        if hasattr(last, 'content'):
-            content_preview = last.content[:150] if len(last.content) > 150 else last.content
-            logger.debug(f"📤 Respuesta: {content_preview}..." if len(last.content) > 150 else f"📤 Respuesta: {content_preview}")
-            logger.debug(f"📏 Longitud de respuesta: {len(last.content)} caracteres")
-        
-        print(last.content)
-        
-        # Actualizamos el historial con TODO lo que devolvió el grafo,
-        # para mantener coherencia en siguientes turnos.
-        history = out["messages"]
         logger.debug(f"📚 Historial actualizado: {len(history)} mensajes totales")
         logger.info(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
