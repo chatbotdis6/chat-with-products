@@ -1,9 +1,14 @@
 dateparser==1.2.1
 pandas==2.2.3
 openpyxl==3.1.5
-openai==1.77.0
+openai==1.107.2
 sqlalchemy==2.0.40
 psycopg2-binary==2.9.10
 python-dotenv==1.1.0
 boto3==1.38.43
 streamlit==1.46.0
+langchain==0.3.27
+langgraph==0.6.7
+pydantic==2.9.2
+langchain-openai==0.3.33
+psycopg[binary]==3.2.10
