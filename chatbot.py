@@ -865,7 +865,7 @@ def detectar_intencion(mensaje_usuario: str) -> str:
     logger.info(f"🔍 DETECTANDO INTENCIÓN")
     logger.info(f"💬 Mensaje: '{mensaje_usuario[:80]}...'")
     
-    router_llm = ChatOpenAI(model=MODEL_NAME, temperature=0)
+    router_llm = ChatOpenAI(model=MODEL_NAME)
     
     response = router_llm.invoke([
         ("system", SYSTEM_PROMPT_ROUTER),
@@ -885,7 +885,7 @@ def responder_como_chef(mensaje: str, history: list) -> tuple[str, list]:
     logger.info(f"👨‍🍳 AGENTE: CHEF")
     logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
     
-    llm_chef = ChatOpenAI(model=MODEL_NAME, temperature=0.7)
+    llm_chef = ChatOpenAI(model=MODEL_NAME)
     response = llm_chef.invoke([
         ("system", SYSTEM_PROMPT_CHEF),
         ("user", mensaje)
@@ -909,7 +909,7 @@ def responder_como_nutriologo(mensaje: str, history: list) -> tuple[str, list]:
     logger.info(f"🥗 AGENTE: NUTRIÓLOGO")
     logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
     
-    llm_nutri = ChatOpenAI(model=MODEL_NAME, temperature=0.5)
+    llm_nutri = ChatOpenAI(model=MODEL_NAME)
     response = llm_nutri.invoke([
         ("system", SYSTEM_PROMPT_NUTRIOLOGO),
         ("user", mensaje)
@@ -932,7 +932,7 @@ def responder_como_bartender(mensaje: str, history: list) -> tuple[str, list]:
     logger.info(f"🍹 AGENTE: BARTENDER")
     logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
     
-    llm_bartender = ChatOpenAI(model=MODEL_NAME, temperature=0.7)
+    llm_bartender = ChatOpenAI(model=MODEL_NAME)
     response = llm_bartender.invoke([
         ("system", SYSTEM_PROMPT_BARTENDER),
         ("user", mensaje)
@@ -955,7 +955,7 @@ def responder_como_barista(mensaje: str, history: list) -> tuple[str, list]:
     logger.info(f"☕ AGENTE: BARISTA")
     logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
     
-    llm_barista = ChatOpenAI(model=MODEL_NAME, temperature=0.6)
+    llm_barista = ChatOpenAI(model=MODEL_NAME)
     response = llm_barista.invoke([
         ("system", SYSTEM_PROMPT_BARISTA),
         ("user", mensaje)
@@ -978,7 +978,7 @@ def responder_como_ingeniero(mensaje: str, history: list) -> tuple[str, list]:
     logger.info(f"🔬 AGENTE: INGENIERO EN ALIMENTOS")
     logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
     
-    llm_ingeniero = ChatOpenAI(model=MODEL_NAME, temperature=0.4)
+    llm_ingeniero = ChatOpenAI(model=MODEL_NAME)
     response = llm_ingeniero.invoke([
         ("system", SYSTEM_PROMPT_INGENIERO),
         ("user", mensaje)
