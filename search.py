@@ -352,13 +352,15 @@ def buscar_proveedores_por_producto(
 
 def buscar_proveedores_con_relevancia(product: str, top_k: int = 25, marca_filtro: str | None = None):
     """
-    Búsqueda con sistema de umbrales escalonados:
+    Búsqueda con sistema de umbrales escalonados + filtrado inteligente con LLM:
     
     - Nivel 1 (ALTA RELEVANCIA): trgm >= 0.55 OR vec >= 0.85
       → Productos muy relevantes, coincidencia directa
+      → Aplica filtrado LLM para eliminar productos irrelevantes
       
     - Nivel 2 (RELEVANCIA MEDIA): trgm >= 0.50 OR vec >= 0.80
       → Productos similares/alternativos (no tenemos exacto pero ofrecemos similares)
+      → Aplica filtrado LLM para eliminar productos irrelevantes
       
     - Nivel 3 (BAJA/NULA RELEVANCIA): No cumple ningún umbral
       → Producto fuera del sector gastronómico
@@ -372,7 +374,7 @@ def buscar_proveedores_con_relevancia(product: str, top_k: int = 25, marca_filtr
       - nivel_relevancia: "alta", "media", "nula"
       - marcas_disponibles: lista de marcas encontradas (para sugerir si hay ambigüedad)
     """
-    logger.info(f"🎯 Búsqueda con relevancia escalonada para: '{product}'" + (f" | Marca: '{marca_filtro}'" if marca_filtro else ""))
+    logger.info(f"🎯 Búsqueda con relevancia escalonada + filtrado LLM para: '{product}'" + (f" | Marca: '{marca_filtro}'" if marca_filtro else ""))
     
     # NIVEL 1: Umbrales altos (coincidencia directa)
     THRESHOLD_TRGM_HIGH = 0.55
@@ -412,9 +414,21 @@ def buscar_proveedores_con_relevancia(product: str, top_k: int = 25, marca_filtr
         logger.info(f"✅ NIVEL 1 (ALTA): {len(productos_relevantes_high)} productos encontrados con alta relevancia")
         logger.info(f"   Mejores similitudes: Trgm={max(p['similaridad_trgm'] for p in productos_relevantes_high):.3f}, Vec={max(p['similaridad_vector'] for p in productos_relevantes_high):.3f}")
         
-        # Reagrupar por proveedor con la info de precios incluida
-        salida = _agrupar_proveedores_con_precios(productos_relevantes_high)
-        return salida, "alta", marcas_disponibles
+        # **NUEVO: Aplicar filtrado inteligente con LLM**
+        productos_filtrados = filtrar_productos_con_llm(productos_relevantes_high, product)
+        
+        # Si el filtrado elimina TODOS los productos, tratarlo como nivel medio
+        if not productos_filtrados:
+            logger.warning(f"⚠️  Filtrado LLM eliminó TODOS los productos de nivel ALTA - intentando nivel MEDIA")
+        else:
+            # Reagrupar por proveedor con la info de precios incluida
+            salida = _agrupar_proveedores_con_precios(productos_filtrados)
+            
+            # Si no quedan proveedores después de agrupar, intentar nivel medio
+            if not salida:
+                logger.warning(f"⚠️  No quedaron proveedores después del filtrado - intentando nivel MEDIA")
+            else:
+                return salida, "alta", marcas_disponibles
     
     # NIVEL 2: Umbrales medios (productos similares/alternativos)
     THRESHOLD_TRGM_MED = 0.50
@@ -455,7 +469,20 @@ def buscar_proveedores_con_relevancia(product: str, top_k: int = 25, marca_filtr
         logger.info(f"⚡ NIVEL 2 (MEDIA): {len(productos_relevantes_med)} productos similares encontrados")
         logger.info(f"   Mejores similitudes: Trgm={max(p['similaridad_trgm'] for p in productos_relevantes_med):.3f}, Vec={max(p['similaridad_vector'] for p in productos_relevantes_med):.3f}")
         
-        salida = _agrupar_proveedores_con_precios(productos_relevantes_med)
+        # **NUEVO: Aplicar filtrado inteligente con LLM**
+        productos_filtrados = filtrar_productos_con_llm(productos_relevantes_med, product)
+        
+        # Si el filtrado elimina todos, retornar nula
+        if not productos_filtrados:
+            logger.warning(f"⚠️  Filtrado LLM eliminó TODOS los productos de nivel MEDIA")
+            return [], "nula", []
+        
+        salida = _agrupar_proveedores_con_precios(productos_filtrados)
+        
+        if not salida:
+            logger.warning(f"⚠️  No quedaron proveedores después del filtrado nivel MEDIA")
+            return [], "nula", []
+        
         return salida, "media", marcas_disponibles
     
     # NIVEL 3: Sin coincidencias relevantes (producto fuera del sector)
@@ -611,9 +638,158 @@ def obtener_marcas_disponibles(product: str, top_k: int = 50) -> list[str]:
     return marcas_lista
 
 
-# ---------------------------------------
-# (Opcional) Obtener detalle por proveedor_id directamente
-# ---------------------------------------
+def filtrar_productos_con_llm(productos: list[dict], consulta_original: str) -> list[dict]:
+    """
+    Filtra productos usando LLM para evaluar relevancia real basándose en:
+    - Nombre del producto
+    - Categorías del producto (si están disponibles)
+    - Intención de búsqueda del usuario
+    
+    El LLM elimina productos que, aunque pasaron los thresholds técnicos,
+    NO son realmente útiles para lo que busca el usuario.
+    
+    Args:
+        productos: Lista de productos de la BD (deben incluir 'producto' y opcionalmente 'categorias')
+        consulta_original: Lo que realmente busca el usuario (ej: "vino", "concha", "aceite")
+    
+    Returns:
+        Lista filtrada de productos relevantes
+    """
+    from langchain_openai import ChatOpenAI
+    
+    if not productos:
+        return productos
+    
+    logger.info(f"🤖 ══════════════════════════════════════════════════════")
+    logger.info(f"🤖 FILTRADO INTELIGENTE CON LLM")
+    logger.info(f"🔍 Consulta: '{consulta_original}' | Productos a evaluar: {len(productos)}")
+    
+    # Si hay muy pocos productos, no vale la pena filtrar
+    if len(productos) <= 3:
+        logger.info(f"⚡ Pocos productos ({len(productos)}), omitiendo filtrado LLM")
+        logger.info(f"🤖 ══════════════════════════════════════════════════════")
+        return productos
+    
+    MODEL_NAME = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+    llm = ChatOpenAI(model=MODEL_NAME)
+    
+    # Construir lista de productos para evaluar (máximo 20 para no exceder tokens)
+    productos_para_evaluar = []
+    limite = min(len(productos), 20)
+    
+    for idx in range(limite):
+        p = productos[idx]
+        producto_nombre = p.get("producto", "N/A")
+        
+        # Intentar obtener categorías desde diferentes campos posibles
+        categorias = []
+        if "categorias" in p and p["categorias"]:
+            if isinstance(p["categorias"], list):
+                categorias = p["categorias"]
+            elif isinstance(p["categorias"], str):
+                categorias = [p["categorias"]]
+        
+        categorias_str = ", ".join(categorias) if categorias else "Sin categorías"
+        
+        productos_para_evaluar.append(
+            f"{idx}. '{producto_nombre}' | Categorías: [{categorias_str}]"
+        )
+    
+    productos_texto = "\n".join(productos_para_evaluar)
+    logger.debug(f"📝 Enviando {len(productos_para_evaluar)} productos al LLM para evaluación")
+    
+    prompt_filtro = f"""Eres un experto en productos gastronómicos del sector de alimentos y bebidas.
+
+Un cliente busca: "{consulta_original}"
+
+Evalúa estos productos y determina cuáles SON REALMENTE RELEVANTES para esa búsqueda específica.
+
+PRODUCTOS A EVALUAR:
+{productos_texto}
+
+CRITERIOS DE RELEVANCIA:
+1. El producto debe ser DIRECTAMENTE útil para alguien que busca "{consulta_original}"
+2. Verifica que TANTO el nombre del producto COMO sus categorías coincidan con la intención de búsqueda
+3. DESCARTA productos que:
+   - Solo contienen la palabra en su nombre pero pertenecen a otra categoría
+   - Son ingredientes secundarios o derivados que contienen el término
+   - No son lo que realmente buscaría un comprador profesional de ese producto
+
+EJEMPLOS GENERALES DE RAZONAMIENTO:
+- Si alguien busca un INGREDIENTE (como mantequilla, aceite, harina):
+  ✅ Mantener: Productos que SON ese ingrediente
+  ❌ Eliminar: Productos que CONTIENEN ese ingrediente pero son otra cosa (pan de mantequilla, galletas con aceite)
+
+- Si alguien busca una BEBIDA:
+  ✅ Mantener: Productos de categorías como bebidas, licores, refrescos
+  ❌ Eliminar: Alimentos sólidos que contienen esa bebida como ingrediente
+
+- Si alguien busca un TIPO DE ALIMENTO (pan, pasta, queso):
+  ✅ Mantener: Productos de esa categoría principal
+  ❌ Eliminar: Productos de otras categorías que incluyen ese alimento como parte
+
+IMPORTANTE:
+- Si las categorías indican claramente que es otro tipo de producto, DESCÁRTALO
+- Usa tu conocimiento gastronómico para determinar qué buscaría realmente un profesional
+
+FORMATO DE RESPUESTA:
+Responde SOLO con los números de los productos RELEVANTES, separados por comas.
+Si NINGUNO es relevante, responde: NINGUNO
+NO incluyas explicaciones ni texto adicional, SOLO números.
+
+Ejemplo de respuesta válida: 0, 2, 5, 8
+"""
+
+    try:
+        response = llm.invoke([("user", prompt_filtro)])
+        numeros_relevantes = response.content.strip()
+        
+        logger.info(f"🎯 LLM filtrador respondió: '{numeros_relevantes}'")
+        
+        # Caso especial: ningún producto es relevante
+        if numeros_relevantes.upper() == "NINGUNO":
+            logger.warning(f"⚠️  LLM determinó que NINGÚN producto es relevante para '{consulta_original}'")
+            logger.info(f"🤖 ══════════════════════════════════════════════════════")
+            return []
+        
+        # Parsear números
+        indices_relevantes = []
+        for num_str in numeros_relevantes.split(","):
+            try:
+                idx = int(num_str.strip())
+                if 0 <= idx < len(productos):
+                    indices_relevantes.append(idx)
+                else:
+                    logger.warning(f"⚠️  Índice fuera de rango ignorado: {idx}")
+            except ValueError:
+                logger.warning(f"⚠️  No se pudo parsear como número: '{num_str}'")
+                continue
+        
+        productos_relevantes = [productos[i] for i in indices_relevantes]
+        
+        # Logging de resultados
+        eliminados = len(productos) - len(productos_relevantes)
+        logger.info(f"✅ Filtrado completado: {len(productos_relevantes)} de {len(productos)} productos son relevantes")
+        
+        if eliminados > 0:
+            logger.info(f"🗑️  Productos eliminados por irrelevancia: {eliminados}")
+            
+            # Mostrar ejemplos de productos eliminados (máximo 5 para debugging)
+            productos_eliminados = [p for i, p in enumerate(productos) if i not in indices_relevantes]
+            for p_elim in productos_eliminados[:5]:
+                producto_nombre = p_elim.get("producto", "N/A")
+                logger.debug(f"   ❌ '{producto_nombre}'")
+        
+        logger.info(f"🤖 ══════════════════════════════════════════════════════")
+        return productos_relevantes
+        
+    except Exception as e:
+        logger.error(f"❌ Error en filtro LLM: {e}")
+        logger.warning(f"⚠️  Fallback: devolviendo todos los productos sin filtrar")
+        logger.info(f"🤖 ══════════════════════════════════════════════════════")
+        return productos  # En caso de error, devolver todos
+
+
 def obtener_detalle_proveedor(proveedor_id: int) -> dict | None:
     """
     Devuelve el detalle de contacto de un proveedor por id.

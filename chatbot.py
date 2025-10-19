@@ -1002,14 +1002,9 @@ def responder_fuera_alcance(mensaje: str, history: list) -> tuple[str, list]:
     logger.debug(f"📝 Mensaje: '{mensaje[:80]}...'")
     
     respuesta = (
-        "Mi especialidad es el sector gastronómico 😊. Puedo ayudarte con:\n\n"
-        "🔍 **Búsqueda de proveedores** de alimentos y bebidas\n"
-        "👨‍🍳 **Recetas y técnicas** de cocina\n"
-        "🥗 **Información nutricional** de alimentos\n"
-        "🍹 **Cócteles y bebidas** (recetas y maridajes)\n"
-        "☕ **Técnicas de café** y preparación\n"
-        "🔬 **Conservación de alimentos** e inocuidad\n\n"
-        "¿En qué puedo asistirte dentro del sector gastronómico?"
+        "Entiendo tu frustración y lamento no poder ayudarte con esa consulta.\n\n"
+        "Si quieres hacer una queja o sugerencia sobre nuestros servicios, "
+        f"puedes enviarla a nuestro buzón de quejas: {BUZON_QUEJAS}\n\n"
     )
     
     logger.info(f"✅ Respuesta fuera de alcance enviada")
