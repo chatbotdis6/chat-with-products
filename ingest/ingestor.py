@@ -85,6 +85,13 @@ class CSVIngestor:
     def create_tables(self):
         logging.info("Creando tablas si no existen...")
         Base.metadata.create_all(engine)  # incluye ingested_files
+        # Asegurar columna nueva en despliegues con tabla existente
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS descripcion TEXT"))
+            except Exception as e:
+                logging.warning(f"No se pudo asegurar columna 'descripcion' en proveedores: {e}")
 
     def reset_database(self):
         logging.info("Eliminando datos existentes de las tablas...")
@@ -145,6 +152,7 @@ class CSVIngestor:
                         ofrece_credito=limpiar_booleano(row.get("ofrece_credito")),
                         calificacion_usuarios=to_float(row.get("calificacion_usuarios")),
                         nivel_membresia=to_float(row.get("nivel_membresia")),
+                        descripcion=safe_str(row.get("descripcion")),  # NUEVO CAMPO
                     )
                     self.session.add(prov)
                 else:
@@ -158,6 +166,7 @@ class CSVIngestor:
                     prov.ofrece_credito = limpiar_booleano(row.get("ofrece_credito"))
                     prov.calificacion_usuarios = to_float(row.get("calificacion_usuarios"))
                     prov.nivel_membresia = to_float(row.get("nivel_membresia"))
+                    prov.descripcion = safe_str(row.get("descripcion"))  # NUEVO CAMPO
             except Exception as e:
                 logging.warning(f"Error procesando proveedor id_proveedor={row.get('id_proveedor')}: {e}")
         try:
