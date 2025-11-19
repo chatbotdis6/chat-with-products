@@ -22,7 +22,6 @@ class Proveedor(Base):
     ofrece_credito = Column(Boolean)
     calificacion_usuarios = Column(Float)
     nivel_membresia = Column(Float)
-    descripcion = Column(Text)
 
 
 class Producto(Base):

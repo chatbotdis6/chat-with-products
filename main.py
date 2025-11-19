@@ -51,6 +51,69 @@ def listar_archivos_productos_hoy(s3_client, bucket, prefix, tz_name: str = JOB_
     return keys
 
 
+# --- NUEVO: util para listar TODOS los CSVs de productos ---
+def listar_archivos_productos_todos(s3_client, bucket, prefix):
+    """Devuelve todas las keys de productos bajo el prefijo indicado.
+    Criterio: termina en .csv y contiene '_productos_'.
+    """
+    keys = []
+    paginator = s3_client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for c in page.get("Contents", []):
+            k = c["Key"]
+            if k.endswith(".csv") and "_productos_" in k:
+                keys.append(k)
+    return keys
+
+
+# --- NUEVO: método para ingerir todos los ficheros si run=True ---
+def ingest_all_product_files(run: bool, s3_client, bucket: str, prefix: str,
+                             proveedores_validos: set[int], ingestor: CSVIngestor):
+    """Ingesta todos los CSVs de productos encontrados si run=True; si run=False, no hace nada."""
+    if not run:
+        logging.info("ingest_all_product_files: run=False → no se ingesta nada.")
+        return
+
+    archivos = listar_archivos_productos_todos(s3_client, bucket, prefix)
+    logging.info(f"Archivos totales para ingesta: {len(archivos)}")
+
+    if not archivos:
+        logging.info("No se encontraron CSVs de productos para ingerir.")
+        return
+
+    for key in archivos:
+        try:
+            filename = key.split("/")[-1]
+            proveedor_id = int(filename.split("_")[0])  # prefijo del filename
+
+            # Validación contra proveedores.csv
+            if proveedor_id not in proveedores_validos:
+                logging.warning(
+                    f"[{key}] id_proveedor {proveedor_id} no está en proveedores.csv. Se omite.")
+                continue
+
+            etag = get_etag(s3_client, bucket, key)
+            if ingestor.was_file_ingested(key, etag):
+                logging.info(f"Saltando (ya ingerido) {key} ({etag})")
+                continue
+
+            df_productos = descargar_csv_desde_s3(s3_client, bucket, key)
+
+            # Validación mínima
+            if "id_producto" not in df_productos.columns:
+                logging.error(f"[{key}] Falta columna 'id_producto'; se omite el archivo.")
+                continue
+
+            # Sincroniza productos del proveedor (insert/update/delete)
+            ingestor.sync_productos_from_csv(df_productos, proveedor_id)
+
+            # Marca como procesado
+            ingestor.mark_file_ingested(key, etag)
+
+        except Exception as e:
+            logging.error(f"Error procesando '{key}': {e}", exc_info=True)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     s3_client = boto3.client("s3")
@@ -78,45 +141,50 @@ if __name__ == "__main__":
         df_proveedores = None
         proveedores_validos = set()
 
-    # 2) Productos: SOLO archivos del día
-    archivos_hoy = listar_archivos_productos_hoy(s3_client, BUCKET_NAME, PRODUCTOS_PREFIX, JOB_TZ)
-    logging.info(f"Archivos de hoy ({hoy_str()}): {archivos_hoy}")
-
-    if not archivos_hoy:
-        logging.info("No hay CSVs de productos para hoy. Nada que hacer.")
+    # 2) Productos: según variable de entorno
+    ingest_all_days = os.getenv("INGEST_ALL_DAYS", "").lower() == "true"
+    if ingest_all_days:
+        logging.info("INGEST_ALL_DAYS=true → ingesta de TODOS los ficheros de productos.")
+        ingest_all_product_files(True, s3_client, BUCKET_NAME, PRODUCTOS_PREFIX, proveedores_validos, ingestor)
     else:
-        for key in archivos_hoy:
-            try:
-                filename = key.split("/")[-1]
-                proveedor_id = int(filename.split("_")[0])  # prefijo del filename
+        archivos_hoy = listar_archivos_productos_hoy(s3_client, BUCKET_NAME, PRODUCTOS_PREFIX, JOB_TZ)
+        logging.info(f"Archivos de hoy ({hoy_str()}): {archivos_hoy}")
 
-                # Si el proveedor NO está en proveedores.csv → solo log y saltar
-                if proveedor_id not in proveedores_validos:
-                    logging.warning(
-                        f"[{key}] id_proveedor {proveedor_id} no está en proveedores.csv. "
-                        "No se ingesta este CSV hasta que se añada su fila en proveedores.csv."
-                    )
-                    continue
+        if not archivos_hoy:
+            logging.info("No hay CSVs de productos para hoy. Nada que hacer.")
+        else:
+            for key in archivos_hoy:
+                try:
+                    filename = key.split("/")[-1]
+                    proveedor_id = int(filename.split("_")[0])  # prefijo del filename
 
-                etag = get_etag(s3_client, BUCKET_NAME, key)
-                if ingestor.was_file_ingested(key, etag):
-                    logging.info(f"Saltando (ya ingerido) {key} ({etag})")
-                    continue
+                    # Si el proveedor NO está en proveedores.csv → solo log y saltar
+                    if proveedor_id not in proveedores_validos:
+                        logging.warning(
+                            f"[{key}] id_proveedor {proveedor_id} no está en proveedores.csv. "
+                            "No se ingesta este CSV hasta que se añada su fila en proveedores.csv."
+                        )
+                        continue
 
-                df_productos = descargar_csv_desde_s3(s3_client, BUCKET_NAME, key)
+                    etag = get_etag(s3_client, BUCKET_NAME, key)
+                    if ingestor.was_file_ingested(key, etag):
+                        logging.info(f"Saltando (ya ingerido) {key} ({etag})")
+                        continue
 
-                # Validación mínima
-                if "id_producto" not in df_productos.columns:
-                    logging.error(f"[{key}] Falta columna 'id_producto'; se omite el archivo.")
-                    continue
+                    df_productos = descargar_csv_desde_s3(s3_client, BUCKET_NAME, key)
 
-                # Sincroniza productos del proveedor (insert/update/delete)
-                ingestor.sync_productos_from_csv(df_productos, proveedor_id)
+                    # Validación mínima
+                    if "id_producto" not in df_productos.columns:
+                        logging.error(f"[{key}] Falta columna 'id_producto'; se omite el archivo.")
+                        continue
 
-                # Marca como procesado
-                ingestor.mark_file_ingested(key, etag)
+                    # Sincroniza productos del proveedor (insert/update/delete)
+                    ingestor.sync_productos_from_csv(df_productos, proveedor_id)
 
-            except Exception as e:
-                logging.error(f"Error procesando '{key}': {e}", exc_info=True)
+                    # Marca como procesado
+                    ingestor.mark_file_ingested(key, etag)
+
+                except Exception as e:
+                    logging.error(f"Error procesando '{key}': {e}", exc_info=True)
 
     logging.info("Ingestión completada.")
