@@ -13,7 +13,7 @@ import dateparser
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from models import Proveedor, Producto, Base, IngestedFile
+from ingest.models import Proveedor, Producto, Base, IngestedFile
 from ingest.database import engine, SessionLocal
 from utils.embedding_utils import generar_embedding
 
@@ -87,16 +87,17 @@ class CSVIngestor:
         Base.metadata.create_all(engine)  # incluye ingested_files
 
     def reset_database(self):
-        logging.info("Eliminando datos existentes de las tablas...")
+        logging.info("⚠️  ELIMINANDO TODAS LAS TABLAS Y RECREANDO DESDE CERO...")
         try:
-            self.session.query(Producto).delete()
-            self.session.query(Proveedor).delete()
-            self.session.query(IngestedFile).delete()
-            self.session.commit()
-            logging.info("Tablas vaciadas correctamente.")
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logging.error(f"Error al resetear la base de datos: {e}")
+            # DROP todas las tablas para recrearlas con el nuevo esquema
+            Base.metadata.drop_all(engine)
+            logging.info("✅ Tablas eliminadas correctamente.")
+            # Recrear tablas con el nuevo esquema
+            Base.metadata.create_all(engine)
+            logging.info("✅ Tablas recreadas con el nuevo esquema.")
+        except Exception as e:
+            logging.error(f"❌ Error al resetear la base de datos: {e}")
+            raise
 
     # ---------- Tracking de ficheros procesados ----------
     def was_file_ingested(self, s3_key: str, etag: str) -> bool:
@@ -140,6 +141,7 @@ class CSVIngestor:
                         nombre_ejecutivo_ventas=row.get("nombre_ejecutivo_ventas"),
                         whatsapp_ventas=safe_str(row.get("whatsapp_ventas")),
                         pagina_web=row.get("pagina_web"),
+                        descripcion=safe_str(row.get("descripcion")),
                         entregas_domicilio=limpiar_booleano(row.get("entregas_domicilio")),
                         monto_minimo=to_float(row.get("monto_minimo")),
                         ofrece_credito=limpiar_booleano(row.get("ofrece_credito")),
@@ -153,6 +155,7 @@ class CSVIngestor:
                     prov.nombre_ejecutivo_ventas = row.get("nombre_ejecutivo_ventas")
                     prov.whatsapp_ventas = safe_str(row.get("whatsapp_ventas"))
                     prov.pagina_web = row.get("pagina_web")
+                    prov.descripcion = safe_str(row.get("descripcion"))
                     prov.entregas_domicilio = limpiar_booleano(row.get("entregas_domicilio"))
                     prov.monto_minimo = to_float(row.get("monto_minimo"))
                     prov.ofrece_credito = limpiar_booleano(row.get("ofrece_credito"))
@@ -223,23 +226,13 @@ class CSVIngestor:
         # --- INSERTA NUEVOS ---
         for _, row in df[df["id_producto_csv"].isin(to_insert)].iterrows():
             try:
-                categorias_raw = [
-                    row.get("categoria_1"),
-                    row.get("categoria_2"),
-                    row.get("categoria_3"),
-                    row.get("categoria_4"),
-                    row.get("categoria_5"),
-                ]
-                categorias = [safe_str(c) for c in categorias_raw if safe_str(c)]
-
                 nombre_producto = safe_str(row.get("nombre_producto"))
-                # Texto para embedding (si no hay nombre, usa atributos alternativos; si no, string vacío)
+                # Texto para embedding
                 texto_emb = (
                     nombre_producto
                     or " ".join(x for x in [
                         safe_str(row.get("marca")),
                         safe_str(row.get("presentacion_venta")),
-                        safe_str(row.get("cod_producto")),
                     ] if x)
                     or ""
                 )
@@ -251,16 +244,15 @@ class CSVIngestor:
                     id_proveedor=proveedor_id,
                     id_producto_csv=int(row["id_producto_csv"]),
                     nombre_producto=nombre_producto,
-                    cod_producto=safe_str(row.get("cod_producto")),
                     marca=safe_str(row.get("marca")),
                     presentacion_venta=safe_str(row.get("presentacion_venta")),
-                    unidad_venta=safe_str(row.get("unidad_venta")),
                     precio_unidad=precio,
+                    unidad_venta=safe_str(row.get("unidad_venta")),
                     moneda=safe_str(row.get("moneda")),
-                    categorias=categorias,
-                    ultima_actualizacion=parse_fecha_espanol(row.get("ultima_actualizacion")),
+                    impuesto=safe_str(row.get("impuesto")),
+                    categoria_1=safe_str(row.get("categoria_1")),
+                    categoria_2=safe_str(row.get("categoria_2")),
                     vigencia=safe_str(row.get("vigencia")),
-                    proveedor=safe_str(row.get("proveedor")),
                     embedding=generar_embedding(texto_emb)
                 )
                 self.session.add(prod)
@@ -277,7 +269,7 @@ class CSVIngestor:
                 except Exception:
                     pass
 
-        # --- ACTUALIZA EXISTENTES (precio_unidad y campos básicos) ---
+        # --- ACTUALIZA EXISTENTES (precio_unidad, moneda, vigencia) ---
         for _, row in df[df["id_producto_csv"].isin(to_update)].iterrows():
             try:
                 precio = parse_precio(row.get("precio_unidad"))
@@ -292,9 +284,7 @@ class CSVIngestor:
                     .values(
                         precio_unidad=precio,
                         moneda=safe_str(row.get("moneda")),
-                        ultima_actualizacion=parse_fecha_espanol(row.get("ultima_actualizacion")),
                         vigencia=safe_str(row.get("vigencia")),
-                        # Si quisieras actualizar más campos, se añaden aquí.
                     )
                 )
                 self.session.execute(stmt)

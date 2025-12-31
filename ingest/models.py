@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, Float, Boolean, Date, ForeignKey, JSON, Text,
+    Column, Integer, Float, Boolean, ForeignKey, Text,
     UniqueConstraint, Index, DateTime, func
 )
 from sqlalchemy.orm import declarative_base
@@ -17,6 +17,7 @@ class Proveedor(Base):
     nombre_ejecutivo_ventas = Column(Text)
     whatsapp_ventas = Column(Text)
     pagina_web = Column(Text)
+    descripcion = Column(Text)  # Descripción del proveedor
     entregas_domicilio = Column(Boolean)
     monto_minimo = Column(Float)
     ofrece_credito = Column(Boolean)
@@ -25,6 +26,20 @@ class Proveedor(Base):
 
 
 class Producto(Base):
+    """
+    Modelo de producto con las columnas definitivas del cliente:
+    - nombre del producto
+    - marca
+    - presentación
+    - Precio unidad
+    - Unidad venta
+    - moneda
+    - impuesto
+    - categoría 1
+    - categoría 2
+    - vigencia de precio
+    - Proveedor (via FK id_proveedor)
+    """
     __tablename__ = 'productos'
 
     # PK artificial
@@ -35,18 +50,17 @@ class Producto(Base):
     # id del producto tal y como viene en el CSV diario
     id_producto_csv = Column(Integer, nullable=False)
 
-    # Datos del producto
+    # Datos del producto (columnas definitivas del cliente)
     nombre_producto = Column(Text)
-    cod_producto = Column(Text)
     marca = Column(Text)
     presentacion_venta = Column(Text)
-    unidad_venta = Column(Text)
     precio_unidad = Column(Float)
+    unidad_venta = Column(Text)
     moneda = Column(Text)
-    categorias = Column(JSON)
-    ultima_actualizacion = Column(Date)
+    impuesto = Column(Text)  # "más IVA", "Exento de IVA", etc.
+    categoria_1 = Column(Text)
+    categoria_2 = Column(Text)
     vigencia = Column(Text)
-    proveedor = Column(Text)
 
     # Embedding (1536 dims)
     embedding = Column(Vector)

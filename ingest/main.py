@@ -11,7 +11,7 @@ import pandas as pd
 from dotenv import load_dotenv
 load_dotenv()
 
-from ingest.ingestor import CSVIngestor
+from ingestor import CSVIngestor
 
 BUCKET_NAME = "supplier-catalogs-2025"
 PROVEEDORES_KEY = "data/proveedores.csv"
@@ -29,7 +29,22 @@ def hoy_str(tz_name: str = JOB_TZ) -> str:
 
 def descargar_csv_desde_s3(s3_client, bucket, key) -> pd.DataFrame:
     obj = s3_client.get_object(Bucket=bucket, Key=key)
-    return pd.read_csv(BytesIO(obj["Body"].read()), encoding="latin1")
+    content = obj["Body"].read()
+    
+    # Intentar varios encodings en orden de preferencia
+    for encoding in ["utf-8-sig", "utf-8", "latin1", "cp1252"]:
+        try:
+            df = pd.read_csv(BytesIO(content), encoding=encoding)
+            # Limpiar nombres de columnas (espacios, BOM residual)
+            df.columns = df.columns.str.strip()
+            return df
+        except UnicodeDecodeError:
+            continue
+    
+    # Fallback final con latin1 (nunca falla)
+    df = pd.read_csv(BytesIO(content), encoding="latin1")
+    df.columns = df.columns.str.strip()
+    return df
 
 
 def get_etag(s3_client, bucket, key) -> str:
@@ -54,13 +69,16 @@ def listar_archivos_productos_hoy(s3_client, bucket, prefix, tz_name: str = JOB_
 # --- NUEVO: util para listar TODOS los CSVs de productos ---
 def listar_archivos_productos_todos(s3_client, bucket, prefix):
     """Devuelve todas las keys de productos bajo el prefijo indicado.
-    Criterio: termina en .csv y contiene '_productos_'.
+    Criterio: termina en .csv, contiene '_productos_', y NO está en backup/.
     """
     keys = []
     paginator = s3_client.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
         for c in page.get("Contents", []):
             k = c["Key"]
+            # Excluir archivos en carpeta backup
+            if "/backup/" in k or k.startswith("backup/"):
+                continue
             if k.endswith(".csv") and "_productos_" in k:
                 keys.append(k)
     return keys
