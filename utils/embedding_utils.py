@@ -2,6 +2,10 @@ import os
 import logging
 from openai import OpenAI
 
+# Silenciar logs HTTP del cliente OpenAI (solo mostrar errores)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+
 # Carga la API key desde variables de entorno
 openai_api_key = os.getenv("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=openai_api_key)
