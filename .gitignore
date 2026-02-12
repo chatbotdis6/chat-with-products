@@ -1,3 +1,9 @@
 .env
 .venv/
 cristobal/
+docs/
+__pycache__/
+*.pyc
+etl_output.log
+todo.txt
+errors.txt

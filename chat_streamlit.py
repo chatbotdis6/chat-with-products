@@ -3,13 +3,10 @@ import streamlit as st
 from typing import Any, Tuple
 import json
 
-# Importa el grafo, prompts y funciones multi-agente del archivo chatbot.py
-from chatbot import (
-    app, SYSTEM_PROMPT, BUZON_QUEJAS,
-    detectar_intencion, responder_como_chef, responder_como_nutriologo,
-    responder_como_bartender, responder_como_barista, responder_como_ingeniero,
-    responder_fuera_alcance
-)
+# Importa el Chatbot refactorizado (arquitectura SOLID)
+from chat.chatbot_refactored import Chatbot
+from chat.config.settings import settings
+from chat.prompts.system_prompts import SystemPrompts
 
 
 # -------------------------------
@@ -63,18 +60,25 @@ def _render_role_swap(original_role: str) -> Tuple[str, str]:
 
 def _init_session_state():
     if "history" not in st.session_state:
-        st.session_state.history = [("system", SYSTEM_PROMPT)]
+        st.session_state.history = [("system", SystemPrompts.get_main_prompt())]
     if "last_response" not in st.session_state:
         st.session_state.last_response = ""
+    if "chatbot" not in st.session_state:
+        st.session_state.chatbot = Chatbot()  # Inicializar instancia del chatbot
+    if "turn_number" not in st.session_state:
+        st.session_state.turn_number = 0  # Contador de turnos para transición a plataforma
 
 
 def _procesar_mensaje_multi_agente(user_text: str, history: list) -> Tuple[str, list]:
     """
-    Procesa el mensaje del usuario usando el sistema multi-agente.
+    Procesa el mensaje del usuario usando el sistema multi-agente refactorizado.
     Retorna: (respuesta, nuevo_historial)
     """
+    # Usar la instancia del chatbot desde session_state
+    chatbot = st.session_state.chatbot
+    
     # PASO 1: Detectar intención del usuario
-    intencion = detectar_intencion(user_text)
+    intencion = chatbot.router.detectar_intencion(user_text)
     
     # Mostrar en sidebar qué agente se activó
     agente_icons = {
@@ -90,52 +94,14 @@ def _procesar_mensaje_multi_agente(user_text: str, history: list) -> Tuple[str, 
     with st.sidebar:
         st.info(f"**Agente activo:** {agente_icons.get(intencion, intencion)}")
     
-    # PASO 2: Rutear según la intención detectada
-    if intencion == "busqueda_proveedores":
-        # Flujo normal con tools (búsqueda de proveedores)
-        history.append(("user", user_text))
-        out = app.invoke({"messages": history})
-        respuesta_content = out["messages"][-1].content
-        return respuesta_content, out["messages"]
-        
-    elif intencion == "chef":
-        # Agente Chef
-        respuesta, nuevo_history = responder_como_chef(user_text, history)
-        return respuesta, nuevo_history
-        
-    elif intencion == "nutriologo":
-        # Agente Nutriólogo
-        respuesta, nuevo_history = responder_como_nutriologo(user_text, history)
-        return respuesta, nuevo_history
-        
-    elif intencion == "bartender":
-        # Agente Bartender
-        respuesta, nuevo_history = responder_como_bartender(user_text, history)
-        return respuesta, nuevo_history
-        
-    elif intencion == "barista":
-        # Agente Barista
-        respuesta, nuevo_history = responder_como_barista(user_text, history)
-        return respuesta, nuevo_history
-        
-    elif intencion == "ingeniero_alimentos":
-        # Agente Ingeniero en Alimentos
-        respuesta, nuevo_history = responder_como_ingeniero(user_text, history)
-        return respuesta, nuevo_history
-        
-    elif intencion == "fuera_alcance":
-        # Respuesta para temas fuera del sector gastronómico
-        respuesta, nuevo_history = responder_fuera_alcance(user_text, history)
-        return respuesta, nuevo_history
-        
-    else:
-        # Fallback si el router devuelve algo inesperado
-        respuesta = "Disculpa, no entendí tu consulta. ¿Puedes reformularla? 😊"
-        nuevo_history = history + [
-            ("user", user_text),
-            ("assistant", respuesta)
-        ]
-        return respuesta, nuevo_history
+    # Incrementar contador de turnos
+    st.session_state.turn_number += 1
+    turn_number = st.session_state.turn_number
+    
+    # PASO 2: Procesar mensaje con el chatbot (pasando el número de turno)
+    respuesta, nuevo_historial = chatbot.process_message(user_text, history, turn_number=turn_number)
+    
+    return respuesta, nuevo_historial
 
 
 # -------------------------------
@@ -185,7 +151,20 @@ with st.sidebar:
     """)
     
     st.divider()
-    st.caption(f"📧 Buzón de quejas: {BUZON_QUEJAS}")
+    st.caption(f"📧 Buzón de quejas: {settings.BUZON_QUEJAS}")
+    
+    # Mostrar contador de consultas
+    if "turn_number" in st.session_state:
+        consultas = st.session_state.turn_number
+        max_con_llm = settings.CONSULTAS_ANTES_PLANTILLA  # Turno 5 = última con LLM
+        if consultas > 0:
+            st.divider()
+            if consultas <= settings.CONSULTAS_ANTES_DERIVACION:
+                st.caption(f"💬 Consultas: {consultas}/{max_con_llm}")
+            elif consultas == settings.CONSULTAS_ANTES_DERIVACION + 1:
+                st.info(f"🚀 Consulta {consultas}: Derivación a plataforma")
+            else:
+                st.warning(f"⚠️ Consulta {consultas}: Modo plantilla")
 
 col1, col2 = st.columns([1, 1])
 with col1:

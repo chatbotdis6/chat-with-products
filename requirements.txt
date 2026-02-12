@@ -1,14 +1,42 @@
+# Core dependencies
+python-dotenv==1.1.0
+pydantic==2.9.2
+
+# Data processing
 dateparser==1.2.1
 pandas==2.2.3
 openpyxl==3.1.5
-openai==1.107.2
+numpy==2.3.3
+
+# Database
 sqlalchemy==2.0.40
 psycopg2-binary==2.9.10
-python-dotenv==1.1.0
-boto3==1.38.43
-streamlit==1.46.0
-langchain==0.3.27
-langgraph==0.6.7
-pydantic==2.9.2
-langchain-openai==0.3.33
 psycopg[binary]==3.2.10
+psycopg-pool==3.3.0
+
+# LangChain & LangGraph
+langchain==1.2.7
+langchain-core==1.2.7
+langchain-openai==1.1.7
+langgraph==1.0.7
+langgraph-checkpoint==4.0.0
+langgraph-checkpoint-postgres==3.0.3
+
+# OpenAI
+openai==2.16.0
+tiktoken==0.11.0
+
+# AWS
+boto3==1.38.43
+
+# Web UI
+streamlit==1.46.0
+
+# Email
+sendgrid==6.11.0
+
+# WhatsApp (Twilio + API server)
+twilio==9.4.3
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+python-multipart==0.0.20
