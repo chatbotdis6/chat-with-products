@@ -362,6 +362,9 @@ async def _process_and_reply_locked(phone: str, twilio_from: str, user_message: 
     """Actual message processing (runs under session lock)."""
     try:
         bot = _get_or_create_bot(phone)
+        logger.info(f"🔑 Bot id={id(bot)}, sessions={list(_sessions.keys())}, "
+                    f"state.turn={bot.state.get('turn_number', '?')}, "
+                    f"state.search_filters={bot.state.get('search_filters', 'MISSING')}")
 
         # ── Check if platform is exhausted (no LLM needed) ──
         if bot.state.get("platform_exhausted", False):
