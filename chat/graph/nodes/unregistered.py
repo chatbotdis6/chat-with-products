@@ -22,21 +22,6 @@ from chat.services.email_service import email_service
 logger = logging.getLogger(__name__)
 
 
-# Gastronomic categories for classification
-CATEGORIAS_GASTRONOMICAS = [
-    "ingredientes de cocina", "especias", "condimentos", "aceites", "vinagres",
-    "carnes", "pescados", "mariscos", "aves", "embutidos",
-    "lácteos", "quesos", "mantequillas", "cremas", "yogures",
-    "frutas", "verduras", "hortalizas", "legumbres", "granos",
-    "harinas", "pastas", "arroces", "cereales", "panadería",
-    "chocolates", "cacao", "azúcares", "mieles", "endulzantes",
-    "bebidas alcohólicas", "vinos", "licores", "cervezas", "destilados",
-    "bebidas", "cafés", "tés", "jugos", "aguas",
-    "conservas", "enlatados", "encurtidos", "salsas", "aderezos",
-    "equipo de cocina", "utensilios", "cristalería", "vajilla",
-]
-
-
 CLASSIFICATION_PROMPT = """Eres un experto en el sector gastronómico y de hospitalidad.
 
 Tu tarea es clasificar si el siguiente producto pertenece o NO al sector gastronómico/hospitalidad.

@@ -5,17 +5,15 @@ This module assembles all nodes into a coherent conversation flow
 using LangGraph's StateGraph.
 """
 import logging
-from typing import Dict, Any, Literal
+from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage
 
 from chat.graph.state import (
     ConversationState, 
     IntentCategory,
     RelevanciaLevel,
-    DifficultUserType,
-    create_initial_state,
 )
 from chat.graph.nodes.router import router_node
 from chat.graph.nodes.query import query_node

@@ -1,18 +1,10 @@
-"""Modelos de tipos."""
+"""Data types for products and providers."""
 from .types import (
-    IntentType,
-    RelevanciaLevel,
     ProveedorInfo,
     ProductoInfo,
-    SearchResult,
-    ContactoDetallado,
 )
 
 __all__ = [
-    "IntentType",
-    "RelevanciaLevel",
     "ProveedorInfo",
     "ProductoInfo",
-    "SearchResult",
-    "ContactoDetallado",
 ]

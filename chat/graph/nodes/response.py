@@ -26,36 +26,11 @@ from chat.prompts.system_prompts import SystemPrompts
 logger = logging.getLogger(__name__)
 
 
-# Response templates for different scenarios
-RESPONSE_TEMPLATES = {
-    "saludo": (
-        "¡Hola! 👋 Soy el asistente de The Hap & D Company.\n\n"
-        "Te ayudo a encontrar proveedores de insumos gastronómicos "
-        "en el Valle de México.\n\n"
-        "¿Qué producto estás buscando hoy?"
-    ),
-    
-    "despedida": (
-        "¡Hasta luego! 😊 Fue un gusto ayudarte.\n\n"
-        "Si necesitas encontrar más proveedores, aquí estaré. ¡Éxito!"
-    ),
-    
-    "agradecimiento": (
-        "¡Con gusto! 😊\n\n"
-        "Si necesitas buscar otro producto o tienes alguna otra pregunta, "
-        "aquí estoy para ayudarte."
-    ),
-    
-    "no_results": (
-        "No encontré resultados para tu búsqueda 😕\n\n"
-        "¿Podrías intentar con otro término o ser más específico?"
-    ),
-    
-    "mostrar_mas_vacio": (
-        "No hay más proveedores para mostrar en este momento.\n\n"
-        "¿Te gustaría buscar otro producto?"
-    ),
-}
+# Fallback response when search returns no results
+NO_RESULTS_RESPONSE = (
+    "No encontré resultados para tu búsqueda 😕\n\n"
+    "¿Podrías intentar con otro término o ser más específico?"
+)
 
 
 def _format_provider_list(proveedores: List[Dict], include_prices: bool = False) -> str:
@@ -292,7 +267,7 @@ def response_node(state: ConversationState) -> NodeOutput:
         if state.get("error"):
             response = f"Lo siento, hubo un problema con la búsqueda. ¿Podrías intentar de nuevo? 😊"
         else:
-            response = RESPONSE_TEMPLATES["no_results"]
+            response = NO_RESULTS_RESPONSE
         logger.info(f"⚠️  No search results")
         return {"response": response}
     
