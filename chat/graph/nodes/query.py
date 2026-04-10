@@ -793,6 +793,23 @@ def query_node(state: ConversationState) -> NodeOutput:
             producto = search_filters.get("producto", "")
             logger.info(f"📊 Reusing search_filters.producto for price filter: '{producto}'")
     
+    # Check if filtering by brand without product - use last searched product
+    if db_action == "filter_brand" and not producto:
+        last_query = state.get("last_search_query", "")
+        if last_query:
+            producto = last_query
+            logger.info(f"📊 Reusing last_search_query for brand filter: '{producto}'")
+        elif search_filters.get("producto"):
+            producto = search_filters.get("producto", "")
+            logger.info(f"📊 Reusing search_filters.producto for brand filter: '{producto}'")
+    
+    # Check if show_more without product - use last searched product
+    if db_action == "show_more" and not producto:
+        last_query = state.get("last_search_query", "")
+        if last_query:
+            producto = last_query
+            logger.info(f"📊 Reusing last_search_query for show_more: '{producto}'")
+    
     logger.info(f"📦 Product: '{producto}' | Brand: {marca} | Price query: {busca_precio}")
     logger.info(f"💬 User message: '{user_message[:80]}...'" if len(user_message) > 80 else f"💬 User message: '{user_message}'")
     

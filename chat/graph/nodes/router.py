@@ -232,16 +232,27 @@ def router_node(state: ConversationState) -> NodeOutput:
         
         # Get previous search filters to inherit context
         prev_filters = state.get("search_filters", {})
+        logger.info(f"📋 prev_filters from state: {prev_filters}")
         
         # Build search filters from entities, inheriting from previous if needed
         search_filters = {}
         
         # If user asks about price/filtering without specifying product, inherit from previous
         if intent == IntentCategory.NEEDS_DB_ACTION.value and db_action in ["filter_price", "show_more", "filter_brand"] and not entities.get("producto"):
+            logger.info(f"📋 Attempting product inheritance: db_action={db_action}, prev_producto={prev_filters.get('producto')}")
             if prev_filters.get("producto"):
                 search_filters["producto"] = prev_filters["producto"]
                 entities["producto"] = prev_filters["producto"]
                 logger.info(f"📦 Inherited product from previous search: {prev_filters['producto']}")
+            else:
+                # Fallback: try last_search_query
+                last_query = state.get("last_search_query", "")
+                if last_query:
+                    search_filters["producto"] = last_query
+                    entities["producto"] = last_query
+                    logger.info(f"📦 Inherited product from last_search_query: {last_query}")
+                else:
+                    logger.warning(f"⚠️ No previous product to inherit for {db_action}")
         
         # Set current entities
         if entities.get("producto"):
