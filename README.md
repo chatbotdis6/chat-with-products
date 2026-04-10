@@ -53,10 +53,9 @@ streamlit run chat_streamlit_v2.py --server.port 8502
 ```
 chat/
 ├── chatbot_v2.py           # Entry point principal
-├── graph/                  # 🆕 Arquitectura LangGraph
+├── graph/                  # Arquitectura LangGraph
 │   ├── state.py           # ConversationState TypedDict
-│   ├── graph.py           # StateGraph assembly
-│   ├── checkpointer.py    # PostgreSQL persistence
+│   ├── graph.py           # StateGraph assembly (9 nodos)
 │   └── nodes/             # Nodos del grafo
 │       ├── router.py      # Intent + entities + difficult
 │       ├── query.py       # Text-to-SQL + búsqueda híbrida
@@ -67,12 +66,14 @@ chat/
 │       └── transition.py
 ├── config/
 │   └── settings.py        # Configuración centralizada
+├── models/
+│   └── types.py           # ProductoInfo, ProveedorInfo
 ├── services/
-│   ├── search_service.py  # Búsqueda híbrida
-│   ├── email_service.py   # Notificaciones SendGrid
-│   └── ...
+│   ├── data_transformer.py # Transformación DB → tipos
+│   ├── email_service.py   # Notificaciones SendGrid/SMTP
+│   └── whatsapp_formatter.py # Formateo números WhatsApp
 └── prompts/
-    └── system_prompts.py  # Prompts de sistema
+    └── system_prompts.py  # Prompt conversacional
 ```
 
 ## 🎭 Funcionalidades
@@ -127,18 +128,19 @@ BUZON_QUEJAS="quejas@empresa.com"
 
 ## 📱 Preparado para WhatsApp
 
-El sistema usa `langgraph-checkpoint-postgres` para persistencia de sesiones:
+El sistema usa estado en memoria por sesión (dict `_sessions` en `whatsapp_server.py`).
+La persistencia PostgreSQL vía `langgraph-checkpoint-postgres` fue removida
+por agregar 15-25s de latencia por request en Heroku.
 
 ```python
 from chat.chatbot_v2 import ChatbotV2
 
-# Crear bot con persistencia (para WhatsApp)
+# Crear bot para un usuario de WhatsApp
 bot = ChatbotV2(
     session_id="+5255XXXXXXXX",  # Número de WhatsApp
-    use_persistence=True
 )
 
-# Las conversaciones persisten entre sesiones
+# Las conversaciones persisten mientras el dyno esté activo
 response = bot.chat("Hola")
 ```
 
@@ -170,9 +172,11 @@ print(bot.chat('Más info de La Ranita De La Paz'))
 ## 🛠️ Tech Stack
 
 - **Orquestación:** LangGraph 1.0.7
-- **LLM:** OpenAI GPT-4o / o3-mini
+- **LLM:** OpenAI GPT-4o / GPT-5 / o3-mini
 - **Base de datos:** PostgreSQL + pgvector + pg_trgm
 - **Búsqueda:** Híbrida (trigram similarity + vector embeddings)
-- **Persistencia:** langgraph-checkpoint-postgres
-- **Email:** SendGrid
+- **Sesión:** Estado en memoria (por dyno)
+- **Email:** SendGrid / SMTP
+- **WhatsApp:** Twilio (webhook + REST API)
+- **Deploy:** Heroku
 - **UI Demo:** Streamlit

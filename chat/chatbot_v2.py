@@ -57,7 +57,8 @@ class ChatbotV2:
         """
         self.session_id = session_id or str(uuid.uuid4())
         self.user_phone = user_phone
-        self.use_persistence = use_persistence
+        # Note: use_persistence param kept for API compatibility but is no longer
+        # used. The PostgresSaver checkpointer was removed due to 15-25s latency.
         
         # Initialize state
         self.state = create_initial_state(
@@ -217,15 +218,3 @@ def create_chatbot(
         user_phone=user_phone,
         use_persistence=use_persistence,
     )
-
-
-# Legacy compatibility: expose the main chat function
-def chat(message: str, session_id: Optional[str] = None) -> str:
-    """
-    Simple chat function for backwards compatibility.
-    
-    Note: This creates a new chatbot for each call, so no conversation
-    history is maintained. For persistent conversations, use ChatbotV2 directly.
-    """
-    bot = ChatbotV2(session_id=session_id)
-    return bot.chat(message)

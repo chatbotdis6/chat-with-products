@@ -1,5 +1,6 @@
 """Servicio de envío de emails - Single Responsibility Principle."""
 import logging
+import re
 import smtplib
 import os
 from email.mime.text import MIMEText
@@ -181,7 +182,6 @@ Conversación:
     @staticmethod
     def _limpiar_markdown(texto: str) -> str:
         """Remove markdown artifacts so the email body reads cleanly."""
-        import re
         # **bold** → bold
         texto = re.sub(r'\*\*(.+?)\*\*', r'\1', texto)
         # *italic* → italic

@@ -407,18 +407,6 @@ async def _process_and_reply_locked(phone: str, twilio_from: str, user_message: 
             logger.error(f"❌ Failed to send error message: {send_err}")
 
 
-def _escape_xml(text: str) -> str:
-    """Escape special XML characters."""
-    return (
-        text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&apos;")
-    )
-
-
 # ──────────────────────────────────────────────
 # Admin endpoints (optional, for debugging)
 # ──────────────────────────────────────────────
