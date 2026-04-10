@@ -107,10 +107,10 @@ def transition_node(state: ConversationState) -> NodeOutput:
     logger.info(f"📊 Turn: {turn_number} | Hidden: {proveedores_ocultos} | "
                f"Brands: {marcas_disponibles} | Price query: {is_price_query}")
     
-    # Don't add to simple responses like greetings
+    # Don't add platform suggestions to conversational responses (greetings, etc.)
     intent = state.get("intent", "")
-    if intent in ["saludo", "despedida", "agradecimiento"]:
-        logger.info(f"ℹ️  Simple intent '{intent}', not adding platform suggestion")
+    if intent == IntentCategory.CONVERSATIONAL.value:
+        logger.info(f"ℹ️  Conversational intent, not adding platform suggestion")
         return {}
     
     platform_url = settings.PLATFORM_URL

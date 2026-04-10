@@ -1,14 +1,18 @@
 """
-Response Node - Generates user-facing responses based on search results.
+Response Node - Generates user-facing responses based on search results
+or conversational context.
 
-This node takes search results and generates natural, formatted responses
-following the established response format guidelines.
+For DB-action results: formats search results, prices, provider details.
+For conversational messages: uses an LLM with full conversation history
+to generate contextual responses (saludos, confirmaciones, preguntas
+sobre el servicio, follow-ups, etc.)
 """
 import logging
+import re
 from typing import Dict, Any, List
 
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from chat.graph.state import (
     ConversationState, 
@@ -17,6 +21,7 @@ from chat.graph.state import (
     IntentCategory,
 )
 from chat.config.settings import settings
+from chat.prompts.system_prompts import SystemPrompts
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +175,55 @@ def _should_ask_for_brand(marcas: List[str]) -> bool:
     return len(marcas) >= 2
 
 
+def _generate_conversational_response(state: ConversationState) -> str:
+    """
+    Generate a conversational response using an LLM with full conversation history.
+    
+    Handles: saludos, despedidas, confirmaciones, preguntas sobre el servicio,
+    follow-ups, y cualquier mensaje que no requiera DB ni especialista.
+    
+    Uses gpt-4o-mini for cost efficiency (these are short, simple responses).
+    """
+    messages = state.get("messages", [])
+    
+    # Build conversation history for the LLM
+    system_prompt = SystemPrompts.get_conversational_prompt()
+    system_prompt = system_prompt.replace("{buzon}", settings.BUZON_QUEJAS)
+    
+    llm_messages = [("system", system_prompt)]
+    
+    # Include last 6 messages for context (3 turns)
+    for msg in messages[-6:]:
+        if hasattr(msg, 'type') and hasattr(msg, 'content') and msg.content:
+            if msg.type == "human":
+                llm_messages.append(("user", msg.content))
+            else:
+                llm_messages.append(("assistant", msg.content))
+    
+    # If no user messages were added (edge case), add a fallback
+    if len(llm_messages) == 1:
+        llm_messages.append(("user", "Hola"))
+    
+    try:
+        llm = ChatOpenAI(
+            model=settings.ROUTER_MODEL,  # gpt-4o — fast, cheap, good enough
+            temperature=0.7,
+            max_tokens=300,  # Keep responses short
+        )
+        
+        response = llm.invoke(llm_messages)
+        return response.content.strip()
+        
+    except Exception as e:
+        logger.error(f"❌ Conversational LLM error: {e}")
+        return (
+            "¡Hola! 👋 Soy el asistente de The Hap & D Company.\n\n"
+            "Te ayudo a encontrar proveedores de insumos gastronómicos "
+            "en el Valle de México.\n\n"
+            "¿Qué producto estás buscando hoy?"
+        )
+
+
 def response_node(state: ConversationState) -> NodeOutput:
     """
     Response node that generates user-facing responses.
@@ -198,10 +252,11 @@ def response_node(state: ConversationState) -> NodeOutput:
     logger.info(f"🎯 Intent: {intent}")
     logger.info(f"📊 Relevancia: {nivel_relevancia}")
     
-    # Handle simple intents
-    if intent in ["saludo", "despedida", "agradecimiento"]:
-        response = RESPONSE_TEMPLATES.get(intent, RESPONSE_TEMPLATES["saludo"])
-        logger.info(f"✅ Simple intent response: {intent}")
+    # ── CONVERSATIONAL PATH: Use LLM with conversation history ──
+    if intent == IntentCategory.CONVERSATIONAL.value or (not search_results and not nivel_relevancia):
+        logger.info("💬 Conversational path → LLM-powered response")
+        response = _generate_conversational_response(state)
+        logger.info(f"✅ Conversational response generated")
         return {"response": response}
     
     # Handle price queries

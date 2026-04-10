@@ -61,6 +61,14 @@ logger = logging.getLogger("whatsapp_server")
 # Session store (phone → ChatbotV2)
 # ──────────────────────────────────────────────
 _sessions: dict[str, ChatbotV2] = {}
+_session_locks: dict[str, asyncio.Lock] = {}
+
+
+def _get_session_lock(phone: str) -> asyncio.Lock:
+    """Get or create a lock for this phone number to serialize messages."""
+    if phone not in _session_locks:
+        _session_locks[phone] = asyncio.Lock()
+    return _session_locks[phone]
 
 
 def _get_or_create_bot(phone: str) -> ChatbotV2:
@@ -339,7 +347,19 @@ async def whatsapp_webhook(
 
 
 async def _process_and_reply(phone: str, twilio_from: str, user_message: str):
-    """Process the user message in background and send reply via REST API."""
+    """Process the user message in background and send reply via REST API.
+    
+    Uses a per-phone lock to serialize messages from the same user,
+    preventing race conditions when multiple messages arrive before
+    the bot responds.
+    """
+    lock = _get_session_lock(phone)
+    async with lock:
+        await _process_and_reply_locked(phone, twilio_from, user_message)
+
+
+async def _process_and_reply_locked(phone: str, twilio_from: str, user_message: str):
+    """Actual message processing (runs under session lock)."""
     try:
         bot = _get_or_create_bot(phone)
 

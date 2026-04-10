@@ -775,12 +775,15 @@ def query_node(state: ConversationState) -> NodeOutput:
     busca_precio = entities.get("busca_precio", False)
     proveedor_nombre = entities.get("proveedor_nombre")
     
-    # If intent is filtrar_precio, force busca_precio = True
-    if intent == "filtrar_precio":
+    # Use db_action for sub-intent routing (replaces old intent names)
+    db_action = state.get("db_action", "")
+    
+    # If db_action is filter_price, force busca_precio = True
+    if db_action == "filter_price":
         busca_precio = True
     
     # Check if filtering by price without product - use last searched product
-    if intent == "filtrar_precio" and not producto:
+    if db_action == "filter_price" and not producto:
         # Try to get from last_search_query first (most reliable)
         last_query = state.get("last_search_query", "")
         if last_query:
@@ -793,12 +796,12 @@ def query_node(state: ConversationState) -> NodeOutput:
     logger.info(f"📦 Product: '{producto}' | Brand: {marca} | Price query: {busca_precio}")
     logger.info(f"💬 User message: '{user_message[:80]}...'" if len(user_message) > 80 else f"💬 User message: '{user_message}'")
     
-    # Handle special intents
-    if intent == "detalle_proveedor" and proveedor_nombre:
+    # Handle special db_actions
+    if db_action == "detail" and proveedor_nombre:
         logger.info(f"📋 Getting provider detail for: {proveedor_nombre}")
         return _get_provider_detail(_query_node, proveedor_nombre)
     
-    if intent == "mostrar_mas":
+    if db_action == "show_more":
           pending = state.get("pending_providers", [])
           prev_search_query = state.get("last_search_query", "")
           
@@ -896,7 +899,7 @@ def query_node(state: ConversationState) -> NodeOutput:
     
     try:
         # PRIORITY: If user explicitly asks for prices, use price search directly
-        if (busca_precio or intent == "filtrar_precio") and producto:
+        if (busca_precio or db_action == "filter_price") and producto:
             logger.info(f"💰 User requested prices for '{producto}' - using price search")
             precios = _query_node._execute_price_search(producto, marca)
             
@@ -977,7 +980,7 @@ def query_node(state: ConversationState) -> NodeOutput:
             logger.info("🔄 Fallback to hybrid search...")
             
             # Price-focused search (secondary attempt)
-            if busca_precio or intent == "filtrar_precio":
+            if busca_precio or db_action == "filter_price":
                 precios = _query_node._execute_price_search(producto, marca)
                 
                 if precios:

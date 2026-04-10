@@ -4,14 +4,10 @@ from enum import Enum
 
 
 class IntentType(Enum):
-    """Tipos de intención del usuario."""
-    BUSQUEDA_PROVEEDORES = "busqueda_proveedores"
-    CHEF = "chef"
-    NUTRIOLOGO = "nutriologo"
-    BARTENDER = "bartender"
-    BARISTA = "barista"
-    INGENIERO_ALIMENTOS = "ingeniero_alimentos"
-    FUERA_ALCANCE = "fuera_alcance"
+    """Tipos de intención del usuario (3 macro-categorías)."""
+    NEEDS_DB_ACTION = "needs_db_action"
+    SPECIALIST = "specialist"
+    CONVERSATIONAL = "conversational"
 
 
 class RelevanciaLevel(Enum):

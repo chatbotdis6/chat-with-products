@@ -70,53 +70,47 @@ def _route_after_router(state: ConversationState) -> str:
     """
     Determine the next node after routing.
     
-    Decision logic:
-    0. If turn >= DERIVACION threshold → platform_block (NO LLM)
+    Simplified 5-branch decision:
+    0. If turn >= threshold → platform_block (NO LLM)
     1. If difficult user → difficult_user node
     2. If specialist intent → specialist node
-    3. If requires search → query node
-    4. Otherwise → response node (for simple intents)
+    3. If needs_db_action → query node
+    4. If conversational → response node (LLM-powered)
+    
+    IMPORTANT: UNREGISTERED is only reachable from QUERY when relevancia == NULA.
+    No more direct fuera_alcance → UNREGISTERED edge.
     """
     turn_number = state.get("turn_number", 0)
     is_difficult = state.get("is_difficult_user", False)
     difficult_type = state.get("difficult_type", "")
     intent = state.get("intent", "")
-    requires_search = state.get("requires_search", False)
     
-    logger.info(f"🔀 Routing after router: difficult={is_difficult}, "
-               f"intent={intent}, requires_search={requires_search}")
+    logger.info(f"🔀 Routing after router: difficult={is_difficult}, intent={intent}")
     
     # ── PLATFORM BLOCK: Turn 6+ → fixed template, no LLM at all ──
-    # Turn 5 (derivación) still goes through normal search + TRANSITION appends the warning
-    if turn_number >= settings.CONSULTAS_ANTES_PLANTILLA and intent not in ["saludo", "despedida", "agradecimiento", "fuera_alcance"]:
+    if turn_number >= settings.CONSULTAS_ANTES_PLANTILLA and intent != IntentCategory.CONVERSATIONAL.value:
         logger.info(f"🔀 → PLATFORM_BLOCK (turn {turn_number} ≥ {settings.CONSULTAS_ANTES_PLANTILLA})")
         return PLATFORM_BLOCK
     
-    # Difficult user (insultos, quejas, etc.) — MUST be checked BEFORE fuera_alcance
-    # because router may set both difficult=True AND intent=fuera_alcance for insults
+    # Difficult user (insultos, quejas, etc.)
     if is_difficult:
         logger.info(f"🔀 → DIFFICULT_USER (type: {difficult_type})")
         return DIFFICULT
     
-    # fuera_alcance → UNREGISTERED for classification + email
-    # This ensures gastronomic products get the 12h promise + email to team
-    if intent == "fuera_alcance":
-        logger.info(f"🔀 → UNREGISTERED (fuera_alcance)")
-        return UNREGISTERED
-    
-    # Specialist intents
-    specialist_intents = ["chef", "nutriologo", "bartender", "barista", "ingeniero_alimentos"]
-    if intent in specialist_intents:
-        logger.info(f"🔀 → SPECIALIST ({intent})")
+    # Specialist intents (chef, nutriologo, etc.)
+    if intent == IntentCategory.SPECIALIST.value:
+        specialist_type = state.get("specialist_type", "")
+        logger.info(f"🔀 → SPECIALIST ({specialist_type})")
         return SPECIALIST
     
-    # Search-related intents
-    if requires_search or intent in ["busqueda_proveedores", "filtrar_marca", "filtrar_precio", "mostrar_mas", "detalle_proveedor"]:
-        logger.info(f"🔀 → QUERY")
+    # Database actions (search, filter, show_more, detail)
+    if intent == IntentCategory.NEEDS_DB_ACTION.value:
+        db_action = state.get("db_action", "")
+        logger.info(f"🔀 → QUERY (db_action: {db_action})")
         return QUERY
     
-    # Simple intents go directly to response
-    logger.info(f"🔀 → RESPONSE (simple intent: {intent})")
+    # Conversational — everything else → LLM-powered RESPONSE
+    logger.info(f"🔀 → RESPONSE (conversational)")
     return RESPONSE
 
 
@@ -219,7 +213,6 @@ def create_conversation_graph() -> StateGraph:
             SPECIALIST: SPECIALIST,
             QUERY: QUERY,
             RESPONSE: RESPONSE,
-            UNREGISTERED: UNREGISTERED,
             PLATFORM_BLOCK: PLATFORM_BLOCK,
         }
     )
@@ -281,7 +274,7 @@ def create_conversation_graph_with_checkpointer(checkpointer):
     # Set entry point
     workflow.set_entry_point(ROUTER)
     
-    # Add conditional edges from router
+    # Add conditional edges from router (checkpointed version)
     workflow.add_conditional_edges(
         ROUTER,
         _route_after_router,
@@ -290,7 +283,6 @@ def create_conversation_graph_with_checkpointer(checkpointer):
             SPECIALIST: SPECIALIST,
             QUERY: QUERY,
             RESPONSE: RESPONSE,
-            UNREGISTERED: UNREGISTERED,
             PLATFORM_BLOCK: PLATFORM_BLOCK,
         }
     )

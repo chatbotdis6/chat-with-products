@@ -11,29 +11,35 @@ from langchain_core.messages import BaseMessage
 
 
 class IntentCategory(str, Enum):
-    """Categorías de intención del usuario."""
-    # Búsqueda de proveedores/productos
-    BUSQUEDA_PROVEEDORES = "busqueda_proveedores"
-    MOSTRAR_MAS = "mostrar_mas"
-    DETALLE_PROVEEDOR = "detalle_proveedor"
-    FILTRAR_MARCA = "filtrar_marca"
-    FILTRAR_PRECIO = "filtrar_precio"
+    """3 macro-categorías de intención del usuario.
     
-    # Roles especializados
+    Diseño general: en vez de 15+ intents rígidos, usamos 3 categorías
+    estables que cubren cualquier mensaje posible. El LLM en RESPONSE
+    se encarga del espacio infinito de mensajes conversacionales.
+    """
+    NEEDS_DB_ACTION = "needs_db_action"   # Requiere búsqueda/acción en BD
+    SPECIALIST = "specialist"             # Pregunta para chef/nutriólogo/etc.
+    CONVERSATIONAL = "conversational"     # Todo lo demás: saludos, despedidas,
+                                          # confirmaciones, preguntas sobre el
+                                          # servicio, follow-ups, etc.
+
+
+class DbAction(str, Enum):
+    """Sub-tipo de acción de BD cuando intent == NEEDS_DB_ACTION."""
+    SEARCH = "search"               # Búsqueda de producto/proveedor
+    FILTER_BRAND = "filter_brand"   # Filtrar por marca
+    FILTER_PRICE = "filter_price"   # Filtrar/ordenar por precio
+    SHOW_MORE = "show_more"         # Ver más proveedores
+    DETAIL = "detail"               # Detalle de un proveedor específico
+
+
+class SpecialistType(str, Enum):
+    """Tipos de especialista."""
     CHEF = "chef"
     NUTRIOLOGO = "nutriologo"
     BARTENDER = "bartender"
     BARISTA = "barista"
     INGENIERO_ALIMENTOS = "ingeniero_alimentos"
-    
-    # Conversación general
-    SALUDO = "saludo"
-    DESPEDIDA = "despedida"
-    AGRADECIMIENTO = "agradecimiento"
-    
-    # Casos especiales
-    FUERA_ALCANCE = "fuera_alcance"
-    UNKNOWN = "unknown"
 
 
 class DifficultUserType(str, Enum):
@@ -152,6 +158,8 @@ class ConversationState(TypedDict, total=False):
     
     # Router output
     intent: str
+    db_action: Optional[str]        # Sub-tipo de acción BD (search, filter_brand, etc.)
+    specialist_type: Optional[str]   # Sub-tipo de especialista (chef, nutriologo, etc.)
     entities: Dict[str, Any]
     is_difficult_user: bool
     difficult_type: str
@@ -205,7 +213,9 @@ def create_initial_state(
         turn_number=0,
         user_phone=user_phone,
         
-        intent=IntentCategory.UNKNOWN.value,
+        intent=IntentCategory.CONVERSATIONAL.value,
+        db_action=None,
+        specialist_type=None,
         entities={},
         is_difficult_user=False,
         difficult_type=DifficultUserType.NONE.value,

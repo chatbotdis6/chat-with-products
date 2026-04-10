@@ -134,7 +134,27 @@ def unregistered_product_node(state: ConversationState) -> NodeOutput:
     producto = state.get("last_search_query", "")
     if not producto:
         entities = state.get("entities", {})
-        producto = entities.get("producto", "producto desconocido")
+        producto = entities.get("producto", "")
+    
+    # GUARD: If no actual product was identified, don't try to classify
+    if not producto or producto.lower() in ("producto desconocido", "desconocido", "null", "none", ""):
+        logger.warning(f"⚠️  No product to classify, returning clarification message")
+        response = (
+            "No estoy seguro de qué producto buscas. 🤔\n\n"
+            "¿Podrías ser más específico? Por ejemplo:\n"
+            "• _busco aceite de oliva_\n"
+            "• _necesito harina para pastelería_\n"
+            "• _proveedores de queso_"
+        )
+        return {
+            "response": response,
+            "unregistered_product": UnregisteredProductInfo(
+                producto="(no especificado)",
+                es_gastronomico=True,
+                email_enviado=False,
+                mensaje_usuario=response,
+            ),
+        }
     
     messages = state.get("messages", [])
     user_phone = state.get("user_phone")
