@@ -24,7 +24,6 @@ from chat.graph.state import (
     RelevanciaLevel,
 )
 from chat.config.settings import settings
-from chat.services.database_service import DatabaseService
 from chat.services.data_transformer import DataTransformer
 from chat.services.whatsapp_formatter import WhatsAppFormatter
 from utils.embedding_utils import generar_embedding
@@ -152,7 +151,6 @@ class QueryNode:
     
     def __init__(self):
         """Initialize the query node."""
-        self.db = DatabaseService()
         self.transformer = DataTransformer()
         self.engine = create_engine(
             settings.database_url_normalized,
