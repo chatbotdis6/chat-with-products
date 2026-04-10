@@ -782,9 +782,23 @@ def query_node(state: ConversationState) -> NodeOutput:
     if db_action == "filter_price":
         busca_precio = True
     
+    def _find_product_in_history(msgs) -> str:
+        """Scan message history backwards to find last product the user searched for."""
+        import re as _re
+        search_words = ["busco", "buscar", "quiero", "necesito", "tienes", "tienen"]
+        for msg in reversed(msgs):
+            content = getattr(msg, 'content', '')
+            lower = content.lower()
+            for sw in search_words:
+                m = _re.search(rf'{sw}\s+(.+?)(?:\?|$)', lower)
+                if m:
+                    candidate = m.group(1).strip()
+                    if 3 < len(candidate) < 60:
+                        return candidate
+        return ""
+
     # Check if filtering by price without product - use last searched product
     if db_action == "filter_price" and not producto:
-        # Try to get from last_search_query first (most reliable)
         last_query = state.get("last_search_query", "")
         if last_query:
             producto = last_query
@@ -792,7 +806,11 @@ def query_node(state: ConversationState) -> NodeOutput:
         elif search_filters.get("producto"):
             producto = search_filters.get("producto", "")
             logger.info(f"📊 Reusing search_filters.producto for price filter: '{producto}'")
-    
+        else:
+            producto = _find_product_in_history(messages)
+            if producto:
+                logger.info(f"📊 Recovered product from message history for price filter: '{producto}'")
+
     # Check if filtering by brand without product - use last searched product
     if db_action == "filter_brand" and not producto:
         last_query = state.get("last_search_query", "")
@@ -802,13 +820,21 @@ def query_node(state: ConversationState) -> NodeOutput:
         elif search_filters.get("producto"):
             producto = search_filters.get("producto", "")
             logger.info(f"📊 Reusing search_filters.producto for brand filter: '{producto}'")
-    
+        else:
+            producto = _find_product_in_history(messages)
+            if producto:
+                logger.info(f"📊 Recovered product from message history for brand filter: '{producto}'")
+
     # Check if show_more without product - use last searched product
     if db_action == "show_more" and not producto:
         last_query = state.get("last_search_query", "")
         if last_query:
             producto = last_query
             logger.info(f"📊 Reusing last_search_query for show_more: '{producto}'")
+        else:
+            producto = _find_product_in_history(messages)
+            if producto:
+                logger.info(f"📊 Recovered product from message history for show_more: '{producto}'")
     
     logger.info(f"📦 Product: '{producto}' | Brand: {marca} | Price query: {busca_precio}")
     logger.info(f"💬 User message: '{user_message[:80]}...'" if len(user_message) > 80 else f"💬 User message: '{user_message}'")
