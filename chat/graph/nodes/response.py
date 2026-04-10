@@ -252,6 +252,12 @@ def response_node(state: ConversationState) -> NodeOutput:
     logger.info(f"🎯 Intent: {intent}")
     logger.info(f"📊 Relevancia: {nivel_relevancia}")
     
+    # ── If a previous node (e.g. query_node for show_more) already set a response, keep it ──
+    existing_response = state.get("response", "")
+    if existing_response and not search_results and not nivel_relevancia and intent != IntentCategory.CONVERSATIONAL.value:
+        logger.info(f"✅ Keeping response from previous node (len={len(existing_response)})")
+        return {"response": existing_response}
+    
     # ── CONVERSATIONAL PATH: Use LLM with conversation history ──
     if intent == IntentCategory.CONVERSATIONAL.value or (not search_results and not nivel_relevancia):
         logger.info("💬 Conversational path → LLM-powered response")
