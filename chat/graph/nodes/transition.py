@@ -13,10 +13,8 @@ from chat.config.settings import settings
 logger = logging.getLogger(__name__)
 
 
-# Turn thresholds for different suggestion intensities
+# Turn threshold for soft suggestion (turns 1-4 only reach this node)
 TURN_THRESHOLD_SOFT = 3   # First gentle suggestion
-TURN_THRESHOLD_MEDIUM = 6  # Second suggestion with more benefits
-TURN_THRESHOLD_STRONG = 10  # More direct invitation
 
 
 def _generate_platform_message(
@@ -25,7 +23,11 @@ def _generate_platform_message(
     marcas_disponibles: int = 0,
     is_price_query: bool = False,
 ) -> str:
-    """Generate an appropriate platform transition message based on context."""
+    """Generate an appropriate platform transition message based on context.
+    
+    Note: This function only receives turns 1-4 because graph.py routes
+    turn >= CONSULTAS_ANTES_PLANTILLA (5) directly to PLATFORM_BLOCK.
+    """
     platform_url = settings.PLATFORM_URL
     
     # Price comparison - always suggest platform
@@ -50,19 +52,8 @@ def _generate_platform_message(
             f"filtrar rápidamente por marca, precio y presentación: {platform_url}"
         )
     
-    # Turn-based suggestions
-    if turn_number >= TURN_THRESHOLD_STRONG:
-        return (
-            f"\n\n🌟 **¿Sabías que...?** Nuestra Plataforma te permite guardar favoritos, "
-            f"comparar proveedores lado a lado y contactar directamente. "
-            f"¡Échale un vistazo! {platform_url}"
-        )
-    elif turn_number >= TURN_THRESHOLD_MEDIUM:
-        return (
-            f"\n\n💡 **Tip**: En la Plataforma puedes armar cuadros comparativos "
-            f"personalizados y ver fichas completas de cada proveedor: {platform_url}"
-        )
-    elif turn_number >= TURN_THRESHOLD_SOFT:
+    # Soft suggestion after a few turns
+    if turn_number >= TURN_THRESHOLD_SOFT:
         return (
             f"\n\n💡 También puedes explorar todos los proveedores en nuestra "
             f"Plataforma: {platform_url}"
@@ -115,26 +106,9 @@ def transition_node(state: ConversationState) -> NodeOutput:
     
     platform_url = settings.PLATFORM_URL
     
-    # ── TURNO 6+: Plantilla fija (sin LLM) ──
-    if turn_number >= settings.CONSULTAS_ANTES_PLANTILLA:
-        logger.info(f"🚫 Turn {turn_number} ≥ {settings.CONSULTAS_ANTES_PLANTILLA} → PLANTILLA FIJA")
-        fixed_response = (
-            f"Para brindarte la mejor experiencia, te invitamos a continuar "
-            f"en nuestra *Plataforma*, donde podrás:\n\n"
-            f"✅ Ver todos los proveedores y marcas\n"
-            f"✅ Armar cuadros comparativos de precios\n"
-            f"✅ Filtrar por zona, marca y presentación\n"
-            f"✅ Contactar proveedores directamente\n\n"
-            f"👉 {platform_url}\n\n"
-            f"¡Gracias por usar nuestro chat! 😊"
-        )
-        return {
-            "response": fixed_response,
-            "should_suggest_platform": True,
-            "platform_suggestion": fixed_response,
-        }
-    
-    # ── TURNO 5: Derivación fuerte (reemplaza respuesta) ──
+    # ── TURNO 5 (turn=4): Derivación fuerte (appends strong suggestion) ──
+    # Note: turn >= CONSULTAS_ANTES_PLANTILLA (5) is handled by PLATFORM_BLOCK
+    # in graph.py and never reaches this node.
     if turn_number >= settings.CONSULTAS_ANTES_DERIVACION:
         logger.info(f"🔄 Turn {turn_number} ≥ {settings.CONSULTAS_ANTES_DERIVACION} → DERIVACIÓN")
         derivation_response = (

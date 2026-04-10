@@ -348,7 +348,6 @@ def response_node(state: ConversationState) -> NodeOutput:
     response = "".join(response_parts)
     
     # Clean up any LLM artifacts like leading "2. Búsqueda" etc.
-    import re
     response = re.sub(r'^\d+\.\s*(Búsqueda|Busqueda)\s*\n*', '', response).strip()
     
     logger.info(f"✅ Response generated: {len(proveedores)} shown, {proveedores_ocultos} hidden")
