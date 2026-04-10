@@ -2,7 +2,8 @@
 WhatsApp Webhook Server for Twilio.
 
 This server receives WhatsApp messages from Twilio, processes them
-through the ChatbotV2 (LangGraph), and sends back the response.
+through the Chatbot (LangGraph tool-calling agent), and sends back
+the response.
 
 Usage:
     # Development (with auto-reload)
@@ -32,8 +33,7 @@ from fastapi.responses import PlainTextResponse
 from twilio.rest import Client as TwilioClient
 from twilio.request_validator import RequestValidator
 
-from chat.chatbot_v2 import ChatbotV2
-from chat.agent.chatbot import ChatbotV3
+from chat.agent.chatbot import Chatbot
 from chat.config.settings import settings
 
 # ──────────────────────────────────────────────
@@ -44,15 +44,6 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER", "")  # e.g. "whatsapp:+14155238886"
 WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "")  # e.g. "https://xxxx.ngrok-free.app"
 VALIDATE_TWILIO_SIGNATURE = os.getenv("VALIDATE_TWILIO_SIGNATURE", "true").lower() == "true"
-
-# V3 Agent A/B testing — comma-separated phone numbers (e.g. "+5215512345678,+5215598765432")
-# Set to "*" to enable V3 for ALL users
-V3_TEST_PHONES_RAW = os.getenv("V3_TEST_PHONES", "")
-V3_ALL = V3_TEST_PHONES_RAW.strip() == "*"
-V3_TEST_PHONES: set[str] = (
-    set() if V3_ALL
-    else {p.strip() for p in V3_TEST_PHONES_RAW.split(",") if p.strip()}
-)
 
 # Twilio message size limit
 WHATSAPP_MAX_LENGTH = 1600
@@ -68,15 +59,10 @@ logging.basicConfig(
 logger = logging.getLogger("whatsapp_server")
 
 # ──────────────────────────────────────────────
-# Session store (phone → ChatbotV2 | ChatbotV3)
+# Session store (phone → Chatbot)
 # ──────────────────────────────────────────────
-_sessions: dict[str, ChatbotV2 | ChatbotV3] = {}
+_sessions: dict[str, Chatbot] = {}
 _session_locks: dict[str, asyncio.Lock] = {}
-
-
-def _is_v3_phone(phone: str) -> bool:
-    """Check if this phone should use the V3 tool-calling agent."""
-    return V3_ALL or phone in V3_TEST_PHONES
 
 
 def _get_session_lock(phone: str) -> asyncio.Lock:
@@ -86,23 +72,14 @@ def _get_session_lock(phone: str) -> asyncio.Lock:
     return _session_locks[phone]
 
 
-def _get_or_create_bot(phone: str) -> ChatbotV2 | ChatbotV3:
+def _get_or_create_bot(phone: str) -> Chatbot:
     """Get existing session or create a new one for this phone number."""
     if phone not in _sessions:
-        use_v3 = _is_v3_phone(phone)
-        version = "V3-agent" if use_v3 else "V2"
-        logger.info(f"🆕 New session for {phone} ({version})")
-        if use_v3:
-            _sessions[phone] = ChatbotV3(
-                session_id=phone,
-                user_phone=phone,
-            )
-        else:
-            _sessions[phone] = ChatbotV2(
-                session_id=phone,
-                user_phone=phone,
-                use_persistence=True,
-            )
+        logger.info(f"🆕 New session for {phone}")
+        _sessions[phone] = Chatbot(
+            session_id=phone,
+            user_phone=phone,
+        )
     return _sessions[phone]
 
 
@@ -243,12 +220,6 @@ async def lifespan(app: FastAPI):
     logger.info(f"   Twilio number: {TWILIO_WHATSAPP_NUMBER or '⚠️  NOT SET'}")
     logger.info(f"   Signature validation: {'ON' if VALIDATE_TWILIO_SIGNATURE else 'OFF'}")
     logger.info(f"   Webhook URL: {WEBHOOK_BASE_URL or '⚠️  NOT SET (use ngrok URL)'}")
-    if V3_ALL:
-        logger.info("   🤖 V3 Agent: ENABLED for ALL users")
-    elif V3_TEST_PHONES:
-        logger.info(f"   🤖 V3 Agent: ENABLED for {len(V3_TEST_PHONES)} test phone(s)")
-    else:
-        logger.info("   🤖 V3 Agent: DISABLED (set V3_TEST_PHONES to enable)")
     
     if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
         logger.warning("⚠️  TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN not set!")
@@ -272,12 +243,9 @@ app = FastAPI(
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    v3_count = sum(1 for b in _sessions.values() if isinstance(b, ChatbotV3))
     return {
         "status": "ok",
         "active_sessions": len(_sessions),
-        "v3_sessions": v3_count,
-        "v3_mode": "all" if V3_ALL else f"{len(V3_TEST_PHONES)} phones" if V3_TEST_PHONES else "disabled",
         "twilio_configured": bool(TWILIO_ACCOUNT_SID),
     }
 
@@ -331,15 +299,8 @@ async def whatsapp_webhook(
         # Remove from in-memory sessions
         if phone in _sessions:
             del _sessions[phone]
-        # Create a fresh bot (correct version for this phone)
-        if _is_v3_phone(phone):
-            fresh_bot = ChatbotV3(session_id=phone, user_phone=phone)
-        else:
-            fresh_bot = ChatbotV2(
-                session_id=phone,
-                user_phone=phone,
-                use_persistence=True,
-            )
+        # Create a fresh bot
+        fresh_bot = Chatbot(session_id=phone, user_phone=phone)
         fresh_bot.state["messages"] = []
         fresh_bot.state["turn_number"] = 0
         _sessions[phone] = fresh_bot
@@ -397,9 +358,7 @@ async def _process_and_reply_locked(phone: str, twilio_from: str, user_message: 
     """Actual message processing (runs under session lock)."""
     try:
         bot = _get_or_create_bot(phone)
-        logger.info(f"🔑 Bot id={id(bot)}, sessions={list(_sessions.keys())}, "
-                    f"state.turn={bot.state.get('turn_number', '?')}, "
-                    f"state.search_filters={bot.state.get('search_filters', 'MISSING')}")
+        logger.info(f"🔑 Bot session={phone}, turn={bot.state.get('turn_number', '?')}")
 
         # ── Check if platform is exhausted (no LLM needed) ──
         if bot.state.get("platform_exhausted", False):
@@ -454,8 +413,6 @@ async def list_sessions():
             {
                 "phone": phone,
                 "turn": bot.turn_number,
-                "last_intent": bot.last_intent,
-                "version": "v3" if isinstance(bot, ChatbotV3) else "v2",
             }
             for phone, bot in _sessions.items()
         ],

@@ -1,50 +1,46 @@
 """
-Streamlit demo — V3 Tool-Calling Agent.
+Streamlit demo for the chatbot.
 
-Run: streamlit run chat_streamlit_v3.py
+Run: streamlit run chat_streamlit.py
 """
 import streamlit as st
 
-from chat.agent.chatbot import ChatbotV3
+from chat.agent.chatbot import Chatbot
 
-st.set_page_config(page_title="Hap & D — Agent V3", page_icon="🤖")
-st.title("🤖 The Hap & D Company — Agent V3")
-st.caption("Tool-calling agent: el LLM decide qué herramienta usar")
+st.set_page_config(page_title="Hap & D — Chat", page_icon="🤖")
+st.title("🤖 The Hap & D Company")
+st.caption("Asistente de búsqueda de proveedores gastronómicos")
 
 # ── Session state ───────────────────────────────────────────────────
-if "bot_v3" not in st.session_state:
-    st.session_state.bot_v3 = ChatbotV3(session_id="streamlit-v3")
-if "messages_v3" not in st.session_state:
-    st.session_state.messages_v3 = []
+if "bot" not in st.session_state:
+    st.session_state.bot = Chatbot(session_id="streamlit")
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # ── Sidebar ─────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("ℹ️ Info")
-    st.write(f"**Turno:** {st.session_state.bot_v3.turn_number}")
-    st.write(f"**Modelo:** gpt-4o (agent) + o3-mini (SQL)")
-    st.write(f"**Arquitectura:** 2 nodos (agent → tools → agent)")
+    st.write(f"**Turno:** {st.session_state.bot.turn_number}")
     st.divider()
     if st.button("🔄 Reiniciar conversación"):
-        st.session_state.bot_v3.reset()
-        st.session_state.messages_v3 = []
+        st.session_state.bot.reset()
+        st.session_state.messages = []
         st.rerun()
 
 # ── Chat history ────────────────────────────────────────────────────
-for msg in st.session_state.messages_v3:
+for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # ── User input ──────────────────────────────────────────────────────
 if prompt := st.chat_input("Escribe tu mensaje…"):
-    # Show user message
-    st.session_state.messages_v3.append({"role": "user", "content": prompt})
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Get bot response
     with st.chat_message("assistant"):
         with st.spinner("Pensando…"):
-            response = st.session_state.bot_v3.chat(prompt)
+            response = st.session_state.bot.chat(prompt)
         st.markdown(response)
 
-    st.session_state.messages_v3.append({"role": "assistant", "content": response})
+    st.session_state.messages.append({"role": "assistant", "content": response})

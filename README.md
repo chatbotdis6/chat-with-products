@@ -4,32 +4,29 @@ Chatbot conversacional para conectar usuarios con proveedores de insumos gastron
 
 ## 🏗️ Arquitectura
 
-El sistema utiliza **LangGraph 1.0.7** para orquestar el flujo de conversación como un grafo de estados:
+El sistema utiliza **LangGraph** con un agente de tool-calling: el LLM decide qué herramienta usar en cada turno.
 
 ```
-┌─────────────┐
-│   Router    │ ← 1 LLM call: intent + entities + difficult user
-└──────┬──────┘
-       │
-       ├── busqueda_proveedores → Query Node (Text-to-SQL)
-       ├── filtrar_precio ────────────┘
-       ├── detalle_proveedor ─────────┘
-       ├── chef/nutriologo/... → Specialist Node
-       └── fuera_alcance → Difficult User Node
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │  Response   │
-                   └──────┬──────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │ Transition  │ → Sugiere plataforma
-                   └──────┬──────┘
-                          │
-                          ▼
-                        END
+┌───────────────────────┐
+│     Agent Node        │ ← LLM con 6 herramientas vinculadas
+│   (system prompt +    │
+│    historial)         │
+└──────────┬────────────┘
+           │
+     ¿tool_calls?
+     ├─ sí ──→ Tool Node (ejecuta herramienta) ──→ Agent Node (loop)
+     └─ no ──→ END
 ```
+
+### Herramientas disponibles
+| Herramienta | Uso |
+|------------|-----|
+| `buscar_productos` | Buscar proveedores por producto/marca |
+| `filtrar_por_precio` | Ordenar por precio, filtrar por rango |
+| `detalle_proveedor` | Info de contacto, WhatsApp, web |
+| `mostrar_mas_proveedores` | Ver más resultados |
+| `consultar_especialista` | Chef, nutriólogo, bartender, barista, ing. alimentos |
+| `reportar_producto_no_encontrado` | Clasificar y notificar al equipo |
 
 ## 🚀 Inicio Rápido
 
@@ -45,25 +42,22 @@ cp .env.example .env
 # Editar .env con tus credenciales
 
 # 4. Iniciar demo (Streamlit)
-streamlit run chat_streamlit_v2.py --server.port 8502
+streamlit run chat_streamlit.py --server.port 8502
 ```
 
 ## 📁 Estructura del Proyecto
 
 ```
 chat/
-├── chatbot_v2.py           # Entry point principal
-├── graph/                  # Arquitectura LangGraph
-│   ├── state.py           # ConversationState TypedDict
-│   ├── graph.py           # StateGraph assembly (9 nodos)
-│   └── nodes/             # Nodos del grafo
-│       ├── router.py      # Intent + entities + difficult
-│       ├── query.py       # Text-to-SQL + búsqueda híbrida
-│       ├── specialist.py  # Chef, Nutriólogo, etc.
-│       ├── difficult_user.py
-│       ├── unregistered.py
-│       ├── response.py
-│       └── transition.py
+├── agent/                  # Agente tool-calling
+│   ├── chatbot.py         # Entry point: Chatbot class
+│   ├── graph.py           # StateGraph (2 nodos: agent + tools)
+│   ├── tools.py           # 6 herramientas @tool
+│   └── prompts.py         # System prompt dinámico
+├── graph/                  # Lógica reutilizada por las tools
+│   ├── state.py           # Tipos (ConversationState, etc.)
+│   └── nodes/
+│       └── query.py       # Text-to-SQL + búsqueda híbrida
 ├── config/
 │   └── settings.py        # Configuración centralizada
 ├── models/
@@ -129,14 +123,12 @@ BUZON_QUEJAS="quejas@empresa.com"
 ## 📱 Preparado para WhatsApp
 
 El sistema usa estado en memoria por sesión (dict `_sessions` en `whatsapp_server.py`).
-La persistencia PostgreSQL vía `langgraph-checkpoint-postgres` fue removida
-por agregar 15-25s de latencia por request en Heroku.
 
 ```python
-from chat.chatbot_v2 import ChatbotV2
+from chat.agent.chatbot import Chatbot
 
 # Crear bot para un usuario de WhatsApp
-bot = ChatbotV2(
+bot = Chatbot(
     session_id="+5255XXXXXXXX",  # Número de WhatsApp
 )
 
@@ -147,16 +139,16 @@ response = bot.chat("Hola")
 ## 🧪 Testing
 
 ```bash
-# Test rápido
-python -c "from chat.chatbot_v2 import ChatbotV2; print(ChatbotV2().chat('Hola'))"
+# Tests unitarios
+pytest test_chatbot.py -v
 
-# Test flujo completo
-python test_architecture.py
+# Test rápido
+python -c "from chat.agent.chatbot import Chatbot; print(Chatbot().chat('Hola'))"
 
 # Test conversación con precios
 python -c "
-from chat.chatbot_v2 import ChatbotV2
-bot = ChatbotV2(session_id='test')
+from chat.agent.chatbot import Chatbot
+bot = Chatbot(session_id='test')
 print(bot.chat('Busco aceite de oliva'))
 print(bot.chat('Dame los más baratos'))
 print(bot.chat('Más info de La Ranita De La Paz'))

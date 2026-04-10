@@ -2,8 +2,6 @@
 Agent Tools — wrappers over existing query/specialist/unregistered logic.
 
 Each tool is a LangChain @tool that the agent LLM can choose to call.
-Internally they reuse the battle-tested code from nodes/query.py,
-nodes/specialist.py and nodes/unregistered.py — zero new DB logic.
 """
 import logging
 import re

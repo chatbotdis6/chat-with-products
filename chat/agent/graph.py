@@ -1,11 +1,9 @@
 """
 Agent Graph — 2-node tool-calling agent built with LangGraph.
 
-Replaces the 9-node hardcoded graph with a simple loop:
-  agent (LLM decides) → tools (execute) → agent (evaluate) → … → END
+Loop: agent (LLM decides) → tools (execute) → agent (evaluate) → … → END
 
-The LLM autonomously decides routing via tool selection instead of
-a separate router node + Python conditionals.
+The LLM autonomously decides routing via tool selection.
 """
 import logging
 from typing import Dict, Any, Optional, List, Literal

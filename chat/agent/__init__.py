@@ -1,1 +1,1 @@
-"""Tool-calling agent architecture — v3."""
+"""Tool-calling agent architecture."""

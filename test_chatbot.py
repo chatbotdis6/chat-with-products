@@ -1,10 +1,10 @@
 """
-Tests for the V3 tool-calling agent architecture.
+Tests for the tool-calling agent architecture.
 
 Validates:
 1. All 6 tools are importable and have correct signatures
 2. Agent graph compiles without errors
-3. ChatbotV3 has the same public API as ChatbotV2
+3. Chatbot has the expected public API
 4. System prompt builds correctly for each turn range
 5. Platform block triggers at turn 5+
 """
@@ -42,7 +42,6 @@ def test_buscar_productos_schema():
     schema = buscar_productos.args_schema.model_json_schema()
     assert "producto" in schema["properties"]
     assert "producto" in schema["required"]
-    # marca should be optional (not in required)
     assert "marca" in schema["properties"]
 
 
@@ -130,38 +129,32 @@ def test_platform_block_at_turn_5():
     assert settings.PLATFORM_URL in msg.content
 
 
-# ── Test 4: ChatbotV3 API compatibility ─────────────────────────────
-def test_chatbot_v3_has_same_api():
-    """ChatbotV3 should have the same public methods as ChatbotV2."""
-    from chat.agent.chatbot import ChatbotV3
+# ── Test 4: Chatbot API ────────────────────────────────────────────
+def test_chatbot_has_expected_api():
+    """Chatbot should have the expected public methods and properties."""
+    from chat.agent.chatbot import Chatbot
 
-    bot = ChatbotV3(session_id="test-api")
+    bot = Chatbot(session_id="test-api")
 
-    # Public methods
     assert callable(bot.chat)
     assert callable(bot.chat_with_metadata)
     assert callable(bot.get_history)
     assert callable(bot.get_messages)
     assert callable(bot.reset)
 
-    # Properties
     assert isinstance(bot.turn_number, int)
     assert isinstance(bot.last_intent, str)
     assert bot.last_search_results is None
-
-    # State
     assert bot.session_id == "test-api"
 
 
-def test_chatbot_v3_reset():
+def test_chatbot_reset():
     """Reset should return state to initial."""
-    from chat.agent.chatbot import ChatbotV3
+    from chat.agent.chatbot import Chatbot
 
-    bot = ChatbotV3(session_id="test-reset")
-    # Manually modify state
+    bot = Chatbot(session_id="test-reset")
     bot.state["turn_number"] = 10
     bot.state["platform_exhausted"] = True
-    # Reset
     bot.reset()
     assert bot.turn_number == 0
     assert bot.state["platform_exhausted"] is False
@@ -170,7 +163,7 @@ def test_chatbot_v3_reset():
 
 def test_extract_response():
     """_extract_response should find the last AIMessage with content."""
-    from chat.agent.chatbot import ChatbotV3
+    from chat.agent.chatbot import Chatbot
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
     messages = [
@@ -181,5 +174,5 @@ def test_extract_response():
     ]
 
     state = {"messages": messages}
-    result = ChatbotV3._extract_response(state)
+    result = Chatbot._extract_response(state)
     assert "proveedores de aceite" in result

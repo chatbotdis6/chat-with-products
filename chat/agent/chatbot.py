@@ -1,13 +1,14 @@
 """
-Chatbot V3 — Tool-calling agent orchestrator.
+Chatbot — Tool-calling agent orchestrator.
 
-Drop-in replacement for ChatbotV2 with the same public API:
+Public API:
   - chat(message) → str
   - chat_with_metadata(message) → (str, dict)
   - get_history() → list[(role, content)]
   - reset()
 
-Internally uses the 2-node agent graph instead of the 9-node hardcoded graph.
+Uses a 2-node agent graph: the LLM decides the flow by choosing
+tools instead of following a hardcoded pipeline.
 """
 import logging
 import uuid
@@ -25,7 +26,7 @@ from chat.config.settings import settings
 logger = logging.getLogger(__name__)
 
 
-class ChatbotV3:
+class Chatbot:
     """
     Tool-calling agent chatbot for The Hap & D Company.
 
@@ -33,11 +34,11 @@ class ChatbotV3:
     a hardcoded router → query → response pipeline.
 
     Usage:
-        bot = ChatbotV3()
+        bot = Chatbot()
         response = bot.chat("Busco aceite de oliva")
 
         # With session (WhatsApp)
-        bot = ChatbotV3(session_id="+5255XXXXXXXX")
+        bot = Chatbot(session_id="+5255XXXXXXXX")
         response = bot.chat("Busco aceite de oliva")
     """
 
@@ -45,7 +46,6 @@ class ChatbotV3:
         self,
         session_id: Optional[str] = None,
         user_phone: Optional[str] = None,
-        use_persistence: bool = False,  # API compat with V2
     ):
         self.session_id = session_id or str(uuid.uuid4())
         self.user_phone = user_phone
@@ -55,13 +55,13 @@ class ChatbotV3:
             user_phone=user_phone,
         )
         self.graph = get_agent_graph()
-        logger.info(f"✅ ChatbotV3 initialized (session: {self.session_id[:8]}…)")
+        logger.info(f"✅ Chatbot initialized (session: {self.session_id[:8]}…)")
 
     # ── Main entry point ────────────────────────────────────────────
     def chat(self, message: str) -> str:
         """Process a user message and return the response."""
         turn = self.state.get("turn_number", 0)
-        logger.info(f"💬 V3 USER: '{message[:80]}' | session={self.session_id[:8]} | turn={turn}")
+        logger.info(f"💬 USER: '{message[:80]}' | session={self.session_id[:8]} | turn={turn}")
 
         user_msg = HumanMessage(content=message)
 
@@ -82,11 +82,11 @@ class ChatbotV3:
 
             # Extract response from last AI message
             response = self._extract_response(result)
-            logger.info(f"🤖 V3 RESPONSE: '{response[:100]}…'")
+            logger.info(f"🤖 RESPONSE: '{response[:100]}…'")
             return response
 
         except Exception as e:
-            logger.error(f"❌ ChatbotV3 error: {e}", exc_info=True)
+            logger.error(f"❌ Chatbot error: {e}", exc_info=True)
             return "Lo siento, hubo un error procesando tu mensaje. ¿Puedes intentar de nuevo? 😊"
 
     # ── With metadata ───────────────────────────────────────────────
@@ -97,7 +97,6 @@ class ChatbotV3:
             "session_id": self.session_id,
             "turn_number": self.state.get("turn_number", 0),
             "platform_exhausted": self.state.get("platform_exhausted", False),
-            "version": "v3-agent",
         }
         return response, metadata
 
@@ -119,25 +118,23 @@ class ChatbotV3:
     # ── Reset ───────────────────────────────────────────────────────
     def reset(self):
         """Reset conversation state."""
-        logger.info(f"🔄 Resetting V3 session: {self.session_id[:8]}…")
+        logger.info(f"🔄 Resetting session: {self.session_id[:8]}…")
         self.state = create_initial_agent_state(
             session_id=self.session_id,
             user_phone=self.user_phone,
         )
 
-    # ── Properties (API compat with V2) ─────────────────────────────
+    # ── Properties ──────────────────────────────────────────────────
     @property
     def turn_number(self) -> int:
         return self.state.get("turn_number", 0)
 
     @property
     def last_intent(self) -> str:
-        """V3 doesn't have a separate intent — return empty for compat."""
         return ""
 
     @property
     def last_search_results(self) -> Optional[Dict]:
-        """V3 doesn't store search_results in state — return None for compat."""
         return None
 
     # ── Internal ────────────────────────────────────────────────────
@@ -150,12 +147,3 @@ class ChatbotV3:
             if isinstance(msg, AIMessage) and msg.content:
                 return msg.content
         return "Lo siento, no pude generar una respuesta. ¿Puedes repetir? 😊"
-
-
-# ── Convenience factory ─────────────────────────────────────────────
-def create_chatbot_v3(
-    session_id: Optional[str] = None,
-    user_phone: Optional[str] = None,
-) -> ChatbotV3:
-    """Create a new V3 chatbot instance."""
-    return ChatbotV3(session_id=session_id, user_phone=user_phone)
