@@ -134,16 +134,6 @@ def _route_after_query(state: ConversationState) -> str:
     return RESPONSE
 
 
-def _route_after_response(state: ConversationState) -> str:
-    """
-    Determine if we should add platform transition.
-    
-    Always go to transition node to check if we should add suggestion.
-    """
-    logger.info(f"🔀 → TRANSITION")
-    return TRANSITION
-
-
 def _finalize_state(state: ConversationState) -> Dict[str, Any]:
     """
     Finalize the state before returning.
@@ -243,76 +233,6 @@ def create_conversation_graph() -> StateGraph:
     logger.info("✅ Conversation graph built successfully")
     
     return workflow.compile()
-
-
-def create_conversation_graph_with_checkpointer(checkpointer):
-    """
-    Create the conversation graph with a checkpointer for persistence.
-    
-    Args:
-        checkpointer: A LangGraph checkpointer (e.g., PostgresSaver)
-        
-    Returns:
-        Compiled StateGraph with persistence
-    """
-    logger.info("🔧 Building conversation graph with checkpointer...")
-    
-    # Create the graph
-    workflow = StateGraph(ConversationState)
-    
-    # Add nodes
-    workflow.add_node(ROUTER, router_node)
-    workflow.add_node(QUERY, query_node)
-    workflow.add_node(SPECIALIST, specialist_node)
-    workflow.add_node(RESPONSE, response_node)
-    workflow.add_node(TRANSITION, transition_node)
-    workflow.add_node(UNREGISTERED, unregistered_product_node)
-    workflow.add_node(DIFFICULT, difficult_user_node)
-    workflow.add_node(PLATFORM_BLOCK, _platform_block_node)
-    workflow.add_node("finalize", _finalize_state)
-    
-    # Set entry point
-    workflow.set_entry_point(ROUTER)
-    
-    # Add conditional edges from router (checkpointed version)
-    workflow.add_conditional_edges(
-        ROUTER,
-        _route_after_router,
-        {
-            DIFFICULT: DIFFICULT,
-            SPECIALIST: SPECIALIST,
-            QUERY: QUERY,
-            RESPONSE: RESPONSE,
-            PLATFORM_BLOCK: PLATFORM_BLOCK,
-        }
-    )
-    
-    # Add conditional edges from query
-    workflow.add_conditional_edges(
-        QUERY,
-        _route_after_query,
-        {
-            UNREGISTERED: UNREGISTERED,
-            RESPONSE: RESPONSE,
-        }
-    )
-    
-    # Add edges from specialist/response to transition
-    workflow.add_edge(SPECIALIST, TRANSITION)
-    workflow.add_edge(RESPONSE, TRANSITION)
-    workflow.add_edge(UNREGISTERED, "finalize")
-    workflow.add_edge(DIFFICULT, "finalize")
-    workflow.add_edge(PLATFORM_BLOCK, "finalize")  # Skip transition — already has the message
-    
-    # Transition always goes to finalize
-    workflow.add_edge(TRANSITION, "finalize")
-    
-    # Finalize goes to END
-    workflow.add_edge("finalize", END)
-    
-    logger.info("✅ Conversation graph with checkpointer built successfully")
-    
-    return workflow.compile(checkpointer=checkpointer)
 
 
 # Create a default graph instance
