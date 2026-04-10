@@ -87,6 +87,8 @@ class ChatbotV2:
         logger.info(f"💬 ══════════════════════════════════════════════════")
         logger.info(f"💬 USER MESSAGE: '{message[:80]}...'")
         logger.info(f"💬 Session: {self.session_id[:8]}... | Turn: {self.state.get('turn_number', 0)}")
+        logger.info(f"💬 self.state search_filters={self.state.get('search_filters', 'MISSING')}, "
+                    f"last_search_query={self.state.get('last_search_query', 'MISSING')}")
         
         # Add user message to state
         user_message = HumanMessage(content=message)
@@ -109,6 +111,7 @@ class ChatbotV2:
             # Debug: log critical state fields for troubleshooting
             logger.info(f"💾 STATE after invoke: search_filters={result.get('search_filters', 'MISSING')}, "
                        f"last_search_query={result.get('last_search_query', 'MISSING')}")
+            logger.info(f"💾 STATE keys: {sorted(result.keys())}")
             
             # Get response
             response = result.get("response", "Lo siento, hubo un problema. ¿Puedes repetir?")
