@@ -171,6 +171,7 @@ class ConversationState(TypedDict, total=False):
     search_results: Optional[SearchResults]
     nivel_relevancia: str
     pending_providers: List[int]
+    shown_provider_ids: List[int]  # Track which providers have already been shown
     last_search_query: str
     
     # Specialist role context
@@ -226,6 +227,7 @@ def create_initial_state(
         search_results=None,
         nivel_relevancia="",
         pending_providers=[],
+        shown_provider_ids=[],
         last_search_query="",
         
         specialist_role=None,

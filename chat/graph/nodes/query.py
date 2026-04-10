@@ -857,30 +857,57 @@ def query_node(state: ConversationState) -> NodeOutput:
                           proveedores=proveedores_formatted,
                           marcas_disponibles=[],
                       )
+                      # Track shown provider IDs
+                      new_ids = [p["proveedor_id"] for p in proveedores_formatted]
+                      prev_shown = state.get("shown_provider_ids", [])
+                      all_shown = list(set(prev_shown + new_ids))
                       return {
                           "search_results": search_results,
                           "nivel_relevancia": RelevanciaLevel.ALTA.value,
                           "pending_providers": [],
+                          "shown_provider_ids": all_shown,
                           "search_filters": state.get("search_filters", {}),
                       }
               except Exception as e:
                   logger.error(f"❌ Error showing more providers: {e}")
           
           # Fallback: re-run search with higher show_max
+          # IMPORTANT: Drop brand filter so user sees more providers across brands
           if prev_search_query:
-              logger.info(f"🔄 Re-running search for '{prev_search_query}' with show_max=10")
+              logger.info(f"🔄 Re-running search for '{prev_search_query}' with show_max=10 (no brand filter)")
               rows = _query_node._execute_hybrid_search(
                   search_query=prev_search_query,
-                  marca=marca,
+                  marca=None,  # Drop brand filter to find more providers
               )
               if rows:
                   search_results, hidden_ids = _query_node._rows_to_search_results(
                       rows, RelevanciaLevel.ALTA.value, show_max=10
                   )
+                  # Check if we found providers beyond what was already shown
+                  already_shown = state.get("shown_provider_ids", [])
+                  new_proveedores = [
+                      p for p in search_results["proveedores"]
+                      if p["proveedor_id"] not in already_shown
+                  ]
+                  if not new_proveedores and search_results["proveedores"]:
+                      # All providers were already shown — tell user clearly
+                      total = len(search_results["proveedores"])
+                      return {
+                          "search_results": None,
+                          "nivel_relevancia": "",
+                          "response": (
+                              f"Solo tenemos {total} proveedor(es) de {prev_search_query} "
+                              f"en nuestra base de datos. Ya te lo(s) mostré anteriormente. "
+                              f"¿Te gustaría buscar otro producto?"
+                          ),
+                      }
                   return {
                       "search_results": search_results,
                       "nivel_relevancia": RelevanciaLevel.ALTA.value,
                       "pending_providers": hidden_ids,
+                      "shown_provider_ids": list(set(
+                          already_shown + [p["proveedor_id"] for p in search_results["proveedores"]]
+                      )),
                       "search_filters": state.get("search_filters", {}),
                   }
           
@@ -1107,10 +1134,16 @@ def query_node(state: ConversationState) -> NodeOutput:
             "precio_min": precio_min,
         }
         
+        # Track shown provider IDs for show_more deduplication
+        new_shown_ids = [p["proveedor_id"] for p in search_results.get("proveedores", [])]
+        prev_shown = state.get("shown_provider_ids", [])
+        all_shown = list(set(prev_shown + new_shown_ids))
+        
         return {
             "search_results": search_results,
             "nivel_relevancia": nivel,
             "pending_providers": hidden_ids,
+            "shown_provider_ids": all_shown,
             "last_search_query": producto or user_message,
             "search_filters": updated_filters,
             "response_metadata": {"used_llm_sql": used_llm_sql},
