@@ -4,6 +4,7 @@ Specialist Node - Handles specialized role responses (Chef, Nutriólogo, etc.)
 Each specialist provides domain-specific advice while redirecting to providers.
 """
 import logging
+import re
 from typing import Dict, Any
 
 from langchain_openai import ChatOpenAI
@@ -145,7 +146,6 @@ def specialist_node(state: ConversationState) -> NodeOutput:
         specialist_response = response.content.strip()
         
         # Clean up bracket artifacts that LLMs sometimes generate
-        import re
         specialist_response = re.sub(r'\[([^\]]+)\]:\s*', r'\1: ', specialist_response)
         specialist_response = re.sub(r'\[([^\]]+)\]', r'\1', specialist_response)
         

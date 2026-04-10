@@ -5,6 +5,7 @@ This node consolidates what was previously 3+ separate LLM calls into a single
 structured output call, improving latency and reducing costs.
 """
 import logging
+import json
 from typing import Dict, Any
 
 from langchain_openai import ChatOpenAI
@@ -187,7 +188,6 @@ def router_node(state: ConversationState) -> NodeOutput:
         ])
         
         # Parse JSON response
-        import json
         result = json.loads(response.content)
         
         # Validate and extract fields
