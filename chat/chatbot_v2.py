@@ -106,6 +106,10 @@ class ChatbotV2:
             # Update internal state
             self.state = result
             
+            # Debug: log critical state fields for troubleshooting
+            logger.info(f"💾 STATE after invoke: search_filters={result.get('search_filters', 'MISSING')}, "
+                       f"last_search_query={result.get('last_search_query', 'MISSING')}")
+            
             # Get response
             response = result.get("response", "Lo siento, hubo un problema. ¿Puedes repetir?")
             
