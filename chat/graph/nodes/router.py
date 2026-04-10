@@ -280,7 +280,10 @@ def router_node(state: ConversationState) -> NodeOutput:
             logger.warning(f"⚠️  Difficult user detected: {difficult_type}")
         logger.info("🔍 ════════════════════════════════════════════════════")
         
-        return {
+        # Only update search_filters if we have new filter data.
+        # If search_filters is empty (e.g. conversational turn), preserve the
+        # previous filters so query_node can inherit them on the NEXT DB turn.
+        output: Dict[str, Any] = {
             "intent": intent,
             "db_action": db_action,
             "specialist_type": specialist_type,
@@ -289,10 +292,26 @@ def router_node(state: ConversationState) -> NodeOutput:
             "difficult_type": difficult_type,
             "requires_search": requires_search,
             "router_confidence": confidence,
-            "search_filters": search_filters,
             "specialist_role": specialist_role,
-            "last_search_query": entities.get("producto", ""),
         }
+        
+        if search_filters:
+            # We extracted new filters — update the state
+            output["search_filters"] = search_filters
+            logger.info(f"📦 Writing new search_filters to state: {search_filters}")
+        else:
+            # No new filters (conversational or ambiguous turn) — preserve previous
+            logger.info(f"📦 Preserving previous search_filters (not overwriting with empty)")
+        
+        # Only overwrite last_search_query if we actually have a new product
+        new_producto = entities.get("producto", "")
+        if new_producto:
+            output["last_search_query"] = new_producto
+            logger.info(f"📦 Writing last_search_query: {new_producto}")
+        else:
+            logger.info(f"📦 Preserving previous last_search_query (no new product in entities)")
+        
+        return output
         
     except json.JSONDecodeError as e:
         logger.error(f"❌ Failed to parse router response as JSON: {e}")
