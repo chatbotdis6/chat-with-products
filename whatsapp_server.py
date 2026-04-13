@@ -257,6 +257,7 @@ async def whatsapp_webhook(
     Body: str = Form(...),
     ProfileName: str = Form(default=""),
     NumMedia: str = Form(default="0"),
+    MessageSid: str = Form(default=""),
 ):
     """
     Twilio WhatsApp webhook endpoint.
@@ -333,7 +334,7 @@ async def whatsapp_webhook(
     # Twilio has a 15-second timeout for webhooks. LLM calls can take
     # longer, so we return an empty TwiML immediately and send the
     # actual response asynchronously via the Twilio REST API.
-    asyncio.create_task(_process_and_reply(phone, From, user_message))
+    asyncio.create_task(_process_and_reply(phone, From, user_message, MessageSid))
 
     # Empty TwiML — the real reply is sent via REST API in the background task
     return PlainTextResponse(
@@ -342,7 +343,49 @@ async def whatsapp_webhook(
     )
 
 
-async def _process_and_reply(phone: str, twilio_from: str, user_message: str):
+# ──────────────────────────────────────────────
+# Typing indicator ("..." animation in WhatsApp)
+# ──────────────────────────────────────────────
+def _send_typing_indicator(message_sid: str):
+    """Send a typing indicator so the user sees '...' while we process.
+    
+    Uses Twilio's Typing Indicators API (Public Beta).
+    https://www.twilio.com/docs/whatsapp/api/typing-indicators-resource
+    """
+    import urllib.request
+    import urllib.error
+    import urllib.parse
+    import base64
+
+    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not message_sid:
+        return
+
+    url = "https://messaging.twilio.com/v2/Indicators/Typing.json"
+    data = urllib.parse.urlencode({
+        "messageId": message_sid,
+        "channel": "whatsapp",
+    }).encode()
+
+    credentials = base64.b64encode(
+        f"{TWILIO_ACCOUNT_SID}:{TWILIO_AUTH_TOKEN}".encode()
+    ).decode()
+
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Authorization", f"Basic {credentials}")
+
+    try:
+        urllib.request.urlopen(req)
+        logger.info(f"✍️  Typing indicator sent for {message_sid}")
+    except urllib.error.HTTPError as e:
+        logger.warning(f"⚠️  Typing indicator failed: {e.code} {e.reason}")
+    except Exception as e:
+        logger.warning(f"⚠️  Typing indicator error: {e}")
+
+
+# ──────────────────────────────────────────────
+# Background processing
+# ──────────────────────────────────────────────
+async def _process_and_reply(phone: str, twilio_from: str, user_message: str, message_sid: str = ""):
     """Process the user message in background and send reply via REST API.
     
     Uses a per-phone lock to serialize messages from the same user,
@@ -351,14 +394,18 @@ async def _process_and_reply(phone: str, twilio_from: str, user_message: str):
     """
     lock = _get_session_lock(phone)
     async with lock:
-        await _process_and_reply_locked(phone, twilio_from, user_message)
+        await _process_and_reply_locked(phone, twilio_from, user_message, message_sid)
 
 
-async def _process_and_reply_locked(phone: str, twilio_from: str, user_message: str):
+async def _process_and_reply_locked(phone: str, twilio_from: str, user_message: str, message_sid: str = ""):
     """Actual message processing (runs under session lock)."""
     try:
         bot = _get_or_create_bot(phone)
         logger.info(f"🔑 Bot session={phone}, turn={bot.state.get('turn_number', '?')}")
+
+        # ── Send typing indicator ("..." animation in WhatsApp) ──
+        if message_sid:
+            _send_typing_indicator(message_sid)
 
         # ── Check if platform is exhausted (no LLM needed) ──
         if bot.state.get("platform_exhausted", False):
