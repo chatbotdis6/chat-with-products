@@ -22,7 +22,7 @@ from langchain_core.messages import (
 
 from chat.config.settings import settings
 from chat.agent.tools import ALL_TOOLS
-from chat.agent.prompts import build_agent_system_prompt
+from chat.agent.prompts import build_agent_system_prompt, PLATFORM_STRONG
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +93,12 @@ def agent_node(state: AgentState) -> Dict[str, Any]:
         f"🤖 Agent response: tool_calls={len(response.tool_calls) if response.tool_calls else 0}, "
         f"content_len={len(response.content) if response.content else 0}"
     )
+
+    # Append platform suffix deterministically to final responses (no tool_calls)
+    if not response.tool_calls and response.content:
+        if turn >= settings.CONSULTAS_ANTES_DERIVACION:
+            response.content += PLATFORM_STRONG
+
     return {"messages": [response]}
 
 

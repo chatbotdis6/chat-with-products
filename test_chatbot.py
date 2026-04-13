@@ -73,22 +73,21 @@ def test_prompt_no_platform_early():
     assert "Derivación a plataforma" not in prompt
 
 
-def test_prompt_soft_suggestion():
-    """Turn 2-3 should include soft platform suggestion."""
+def test_no_platform_at_turn_2():
+    """Turns 0-4 should have no platform mentions in the prompt."""
     from chat.agent.prompts import build_agent_system_prompt
-    from chat.config.settings import settings
-    prompt = build_agent_system_prompt(turn_number=settings.CONSULTAS_ANTES_SUGERENCIA)
-    assert "Sugerencia de plataforma" in prompt
-    assert settings.PLATFORM_URL in prompt
+    prompt = build_agent_system_prompt(turn_number=2)
+    assert "konekt" not in prompt.lower()
+    assert "Plataforma" not in prompt
 
 
-def test_prompt_strong_derivation():
-    """Turn 4+ should include strong derivation."""
-    from chat.agent.prompts import build_agent_system_prompt
+def test_platform_strong_constant():
+    """PLATFORM_STRONG constant should contain platform URL and key elements."""
+    from chat.agent.prompts import PLATFORM_STRONG
     from chat.config.settings import settings
-    prompt = build_agent_system_prompt(turn_number=settings.CONSULTAS_ANTES_DERIVACION)
-    assert "Derivación a plataforma" in prompt
-    assert settings.PLATFORM_URL in prompt
+    assert settings.PLATFORM_URL in PLATFORM_STRONG
+    assert "Importante" in PLATFORM_STRONG
+    assert "Plataforma" in PLATFORM_STRONG
 
 
 # ── Test 3: Agent graph ─────────────────────────────────────────────
@@ -110,7 +109,7 @@ def test_agent_state_creation():
     assert state["messages"] == []
 
 
-def test_platform_block_at_turn_5():
+def test_platform_block_at_plantilla_turn():
     """Agent node should return platform block at turn >= CONSULTAS_ANTES_PLANTILLA."""
     from chat.agent.graph import agent_node, AgentState
     from chat.config.settings import settings

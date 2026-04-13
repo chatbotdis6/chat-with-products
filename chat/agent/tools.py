@@ -84,33 +84,38 @@ def buscar_productos(
     marcas = _transformer.extract_marcas(productos_list)
 
     total = len(proveedores)
+
+    # ── Branch: multiple brands and no brand filter → show brands only ──
+    if len(marcas) > 1 and not marca:
+        shown_marcas = marcas[:10]
+        extra = len(marcas) - len(shown_marcas)
+        lines = [
+            f"BRANDS_FOUND: Se encontraron {total} proveedores de '{producto}' "
+            f"en {len(marcas)} marcas distintas.",
+            "",
+            f"Marcas disponibles: {', '.join(shown_marcas)}"
+            + (f" y {extra} más" if extra > 0 else ""),
+            "",
+            "INSTRUCCIÓN: Presenta las marcas al usuario y pregunta si tiene "
+            "preferencia de marca. NO muestres proveedores ni precios todavía.",
+        ]
+        return "\n".join(lines)
+
+    # ── Single brand or brand already filtered → show providers (NO prices) ──
     show_max = min(3, total)
     shown = proveedores[:show_max]
     hidden_count = total - show_max
 
     lines = [f"Se encontraron {total} proveedores de '{producto}'."]
     if marcas:
-        lines.append(f"Marcas disponibles: {', '.join(marcas[:8])}")
+        lines.append(f"Marca(s): {', '.join(marcas[:8])}")
     lines.append("")
 
     for p in shown:
         ejemplos = p.get("ejemplos", "—")
         desc = p.get("descripcion_proveedor") or p.get("descripcion") or ""
-        precios_ctx = p.get("contexto_precios", [])
-        precio_str = ""
-        if precios_ctx:
-            first = precios_ctx[0]
-            precio_val = first.get("precio")
-            moneda = first.get("moneda", "MXN")
-            if moneda and moneda.upper() == "PMX":
-                moneda = "MXN"
-            if precio_val:
-                precio_str = f" | ${precio_val:,.2f} {moneda}"
 
-        lines.append(
-            f"- Proveedor: {p['proveedor']} (ID {p['proveedor_id']})"
-            f"{precio_str}"
-        )
+        lines.append(f"- Proveedor: {p['proveedor']} (ID {p['proveedor_id']})")
         if desc and desc != "—":
             lines.append(f"  Descripción: {desc[:120]}")
         if ejemplos and ejemplos != "—":
@@ -118,6 +123,11 @@ def buscar_productos(
 
     if hidden_count > 0:
         lines.append(f"\nHay {hidden_count} proveedores más disponibles.")
+
+    lines.append(
+        "\nINSTRUCCIÓN: NO muestres precios. Presenta los proveedores y "
+        "productos encontrados. Ofrece '¿Quieres ver precios?' o '¿Info de contacto?'"
+    )
 
     return "\n".join(lines)
 
@@ -390,8 +400,8 @@ def reportar_producto_no_encontrado(
         return (
             f"GASTRONOMICO: '{producto}' es del sector gastronómico pero no lo tenemos "
             f"en la base de datos todavía. Se envió un reporte al equipo. "
-            f"Informa al usuario que en hasta 12 horas le tendremos una sugerencia "
-            f"y pregunta si quiere que le avisen por WhatsApp."
+            f"Informa al usuario que en hasta 12 horas le contactaremos por WhatsApp "
+            f"con opciones de proveedores."
         )
     else:
         return (

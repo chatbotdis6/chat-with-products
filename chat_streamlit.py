@@ -124,8 +124,7 @@ with st.sidebar:
     st.divider()
 
     st.header("⚙️ Config")
-    st.caption(f"Sugerencia plataforma: turno {settings.CONSULTAS_ANTES_SUGERENCIA}")
-    st.caption(f"Derivación fuerte: turno {settings.CONSULTAS_ANTES_DERIVACION}")
+    st.caption(f"Aviso plataforma: turno {settings.CONSULTAS_ANTES_DERIVACION}")
     st.caption(f"Bloqueo plantilla: turno {settings.CONSULTAS_ANTES_PLANTILLA}")
     st.caption(f"Plataforma: {settings.PLATFORM_URL}")
     st.divider()

@@ -41,9 +41,10 @@ class Settings:
     MAX_EJEMPLOS_POR_PROVEEDOR: int = 3
     
     # Platform Transition Configuration
-    CONSULTAS_ANTES_SUGERENCIA: int = 2  # Después de 2 consultas, sugerir plataforma
-    CONSULTAS_ANTES_DERIVACION: int = 4  # Después de 4 consultas, derivar con LLM (turno 5)
-    CONSULTAS_ANTES_PLANTILLA: int = 5   # Después de 5 consultas, usar plantilla fija (turno 6+)
+    # Consulta = turno 0-indexed. La 5ª consulta es turn 4.
+    CONSULTAS_ANTES_SUGERENCIA: int = 4  # Turn 4 (5ª consulta): respuesta + "📢 ¡Importante!..."
+    CONSULTAS_ANTES_DERIVACION: int = 4  # (mismo valor, se mantiene por compat)
+    CONSULTAS_ANTES_PLANTILLA: int = 5   # Turn 5+ (6ª consulta): plantilla fija sin LLM
     
     # Database Configuration
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
