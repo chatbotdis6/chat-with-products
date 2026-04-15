@@ -54,14 +54,10 @@ def create_initial_agent_state(
 
 # ── Platform-block message (no LLM needed) ─────────────────────────
 _PLATFORM_BLOCK_MSG = (
-    f"Para brindarte la mejor experiencia, te invitamos a continuar "
-    f"en nuestra *Plataforma*, donde podrás:\n\n"
-    f"✅ Ver todos los proveedores y marcas\n"
-    f"✅ Armar cuadros comparativos de precios\n"
-    f"✅ Filtrar por zona, marca y presentación\n"
-    f"✅ Contactar proveedores directamente\n\n"
-    f"👉 {settings.PLATFORM_URL}\n\n"
-    f"¡Gracias por usar nuestro chat! 😊"
+    f"¡Gracias por usar nuestro chat! 😊 Para seguir explorando todos los "
+    f"productos gastronómicos y proveedores líderes en la CDMX, accede sin "
+    f"costo a {settings.PLATFORM_URL} — no necesitas registrarte para "
+    f"consultar todo lo que manejamos."
 )
 
 

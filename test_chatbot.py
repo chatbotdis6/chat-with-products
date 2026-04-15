@@ -86,8 +86,8 @@ def test_platform_strong_constant():
     from chat.agent.prompts import PLATFORM_STRONG
     from chat.config.settings import settings
     assert settings.PLATFORM_URL in PLATFORM_STRONG
-    assert "Importante" in PLATFORM_STRONG
-    assert "Plataforma" in PLATFORM_STRONG
+    assert "sin costo" in PLATFORM_STRONG
+    assert "registrarte" in PLATFORM_STRONG
 
 
 # ── Test 3: Agent graph ─────────────────────────────────────────────

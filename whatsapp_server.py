@@ -411,10 +411,10 @@ async def _process_and_reply_locked(phone: str, twilio_from: str, user_message: 
         if bot.state.get("platform_exhausted", False):
             platform_url = settings.PLATFORM_URL
             response = (
-                f"Ya te hemos derivado a nuestra Plataforma donde encontrarás "
-                f"todo lo que necesitas:\n\n"
-                f"👉 {platform_url}\n\n"
-                f"Si necesitas ayuda adicional, escríbenos por ahí. ¡Gracias! 😊"
+                f"¡Gracias por usar nuestro chat! 😊 Para seguir explorando todos los "
+                f"productos gastronómicos y proveedores líderes en la CDMX, accede sin "
+                f"costo a {platform_url} — no necesitas registrarte para "
+                f"consultar todo lo que manejamos."
             )
             logger.info(f"🚫 Platform exhausted for {phone} — returning fixed message (0 tokens)")
             _send_whatsapp(twilio_from, response)

@@ -29,10 +29,10 @@ def _chat(bot: Chatbot, message: str) -> str:
     """Chat + apply WhatsApp formatting, same as whatsapp_server."""
     if bot.state.get("platform_exhausted", False):
         return (
-            f"Ya te hemos derivado a nuestra Plataforma donde encontrarás "
-            f"todo lo que necesitas:\n\n"
-            f"👉 {settings.PLATFORM_URL}\n\n"
-            f"Si necesitas ayuda adicional, escríbenos por ahí. ¡Gracias! 😊"
+            f"¡Gracias por usar nuestro chat! 😊 Para seguir explorando todos los "
+            f"productos gastronómicos y proveedores líderes en la CDMX, accede sin "
+            f"costo a {settings.PLATFORM_URL} — no necesitas registrarte para "
+            f"consultar todo lo que manejamos."
         )
     response = bot.chat(message)
     # Same markdown_to_whatsapp as whatsapp_server

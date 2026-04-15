@@ -87,14 +87,11 @@ Recibirás el historial completo. Úsalo para entender follow-ups como "sí", \
 
 # ── Platform suffix (appended deterministically in graph.py) ────
 PLATFORM_STRONG = (
-    f"\n\n━━━━━━━━━━━━━━━━━━━━\n"
-    f"📢 *¡Importante!* Ya llevamos varias consultas y me encanta ayudarte, "
-    f"pero en nuestra *Plataforma* vas a encontrar TODO esto mucho más rápido:\n\n"
-    f"🔍 Búsqueda avanzada con filtros\n"
-    f"📊 Cuadros comparativos de precios\n"
-    f"📱 Contacto directo con proveedores\n\n"
-    f"👉 {settings.PLATFORM_URL}\n"
-    f"━━━━━━━━━━━━━━━━━━━━"
+    f"\n\n💡 Veo que estás interesado en encontrar más productos. "
+    f"Hoy tenemos una forma más fácil de acceder a los mejores productos "
+    f"gastronómicos en la CDMX con los proveedores líderes. "
+    f"Accede sin costo a {settings.PLATFORM_URL} , "
+    f"no necesitas registrarte para consultar todos los productos que manejamos."
 )
 
 
