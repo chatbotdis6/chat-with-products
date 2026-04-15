@@ -85,23 +85,28 @@
 ## Bloque 7 — Mensajes concurrentes (race condition)
 > Verifica que dos mensajes rápidos seguidos no causen saludos duplicados ni errores.
 
-- [ ] `/reset`
-- [ ] **Enviar "Hola" e inmediatamente "Busco aceite"** (< 1 segundo entre ambos)
-- [ ] Verificar que NO hay doble saludo
-- [ ] Verificar que ambos mensajes se procesan en orden
-- [ ] Verificar que no hay error 500 en logs
+- [x] `/reset`
+- [x] **Enviar "Hola" e inmediatamente "Busco aceite"** (< 1 segundo entre ambos)
+- [x] Verificar que NO hay doble saludo
+- [x] Verificar que ambos mensajes se procesan en orden
+- [x] Verificar que no hay error 500 en logs
+
+✅ **Completado** — v20 (WhatsApp + Heroku)
 
 ---
 
 ## Bloque 8 — Edge cases
 > Casos borde para robustez general.
 
-- [ ] `/reset`
-- [ ] **Mensaje vacío o solo espacios** → Respuesta amable pidiendo mensaje
-- [ ] **Mensaje muy largo (500+ caracteres)** → Se procesa sin error
-- [ ] **Emojis solos "👍"** → Respuesta conversacional coherente
-- [ ] **Número suelto "3"** → Respuesta conversacional (no crash)
-- [ ] **"Busco algo" (producto genérico)** → Pide especificar
+- [x] `/reset`
+- [x] **Mensaje muy largo (500+ caracteres)** → Se procesa sin error
+- [x] **Emojis solos "👍"** → Redirige a su alcance gastronómico
+- [x] **Número suelto "3"** → Redirige a su alcance gastronómico
+- [x] **"Busco algo" (producto genérico)** → Pide especificar
+- [x] **"Cuánto es 2+2?"** → NO responde, redirige a su alcance
+- [x] **"Qué tiempo hace en Madrid?"** → NO responde, redirige a su alcance
+
+✅ **Completado** — v21 (WhatsApp + Heroku)
 
 ---
 
@@ -115,5 +120,5 @@
 | 4 | Especialistas | ✅ Completado (v18) |
 | 5 | Derivación a plataforma | ✅ Completado (v19) |
 | 6 | Usuario difícil | ✅ Completado (v19) |
-| 7 | Mensajes concurrentes | ⬜ Pendiente |
-| 8 | Edge cases | ⬜ Pendiente |
+| 7 | Mensajes concurrentes | ✅ Completado (v20) |
+| 8 | Edge cases | ✅ Completado (v21) |

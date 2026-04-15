@@ -18,6 +18,7 @@ from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     SystemMessage,
+    ToolMessage,
 )
 
 from chat.config.settings import settings
@@ -96,6 +97,17 @@ def agent_node(state: AgentState) -> Dict[str, Any]:
 
     # Append platform suffix deterministically to final responses (no tool_calls)
     if not response.tool_calls and response.content:
+        # Platform CTA after provider detail
+        msgs_list = state.get("messages", [])
+        if any(
+            isinstance(m, ToolMessage) and "DETALLE_PROVEEDOR:" in (m.content or "")
+            for m in msgs_list
+        ):
+            response.content += (
+                f"\n\n💡 También puedes explorar todos los proveedores "
+                f"en nuestra *Plataforma*: {settings.PLATFORM_URL}"
+            )
+
         if turn >= settings.CONSULTAS_ANTES_DERIVACION:
             response.content += PLATFORM_STRONG
 

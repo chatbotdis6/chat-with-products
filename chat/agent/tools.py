@@ -245,7 +245,6 @@ def detalle_proveedor(nombre_proveedor: str) -> str:
             lines.append(f"\n⭐ Calificación: {stars} ({cal}/5)")
 
         lines.append("\n¿Te gustaría ver los productos de este proveedor o contactarlo directamente?")
-        lines.append(f"\n💡 También puedes explorar todos los proveedores en nuestra Plataforma: {settings.PLATFORM_URL}")
 
         return (
             "DETALLE_PROVEEDOR:\n"
