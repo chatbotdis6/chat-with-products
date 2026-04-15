@@ -16,7 +16,7 @@ class Settings:
     
     # Business Configuration
     BUZON_QUEJAS: str = os.getenv("BUZON_QUEJAS", "fake_buzon@gmail.com")
-    PLATFORM_URL: str = os.getenv("PLATFORM_URL", "https://konekt.com")
+    PLATFORM_URL: str = os.getenv("PLATFORM_URL", "https://zabukan.com/")
     
     # Search Configuration - Alta relevancia
     THRESHOLD_TRGM_HIGH: float = 0.55

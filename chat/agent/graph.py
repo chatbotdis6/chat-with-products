@@ -99,13 +99,21 @@ def agent_node(state: AgentState) -> Dict[str, Any]:
     if not response.tool_calls and response.content:
         # Platform CTA after provider detail
         msgs_list = state.get("messages", [])
-        if any(
-            isinstance(m, ToolMessage) and "DETALLE_PROVEEDOR:" in (m.content or "")
-            for m in msgs_list
-        ):
+        _detail_msg = next(
+            (m for m in msgs_list
+             if isinstance(m, ToolMessage) and "DETALLE_PROVEEDOR:" in (m.content or "")),
+            None,
+        )
+        if _detail_msg:
+            # Extract provider name from "📋 **Nombre**"
+            import re
+            _name_match = re.search(r"📋 \*\*(.+?)\*\*", _detail_msg.content or "")
+            _prov_name = _name_match.group(1) if _name_match else "este proveedor"
             response.content += (
-                f"\n\n💡 También puedes explorar todos los proveedores "
-                f"en nuestra *Plataforma*: {settings.PLATFORM_URL}"
+                f"\n\n💡 ¿Sabías que en nuestra plataforma {settings.PLATFORM_URL} "
+                f"podrás encontrar todos los productos de *{_prov_name}* con los mejores "
+                f"precios del mercado? Y no solo de este proveedor, sino de todos los "
+                f"proveedores especializados para el sector gastronómico en la CDMX."
             )
 
         if turn >= settings.CONSULTAS_ANTES_DERIVACION:

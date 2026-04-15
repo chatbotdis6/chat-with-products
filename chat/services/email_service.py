@@ -26,7 +26,7 @@ class EmailService:
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.smtp_user = os.getenv("SMTP_USER")
         self.smtp_password = os.getenv("SMTP_PASSWORD")
-        self.from_email = os.getenv("EMAIL_FROM", "noreply@konekt.com")
+        self.from_email = os.getenv("EMAIL_FROM", "noreply@zabukan.com")
         self.buzon_quejas = settings.BUZON_QUEJAS
         
         # Detectar método disponible
