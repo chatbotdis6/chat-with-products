@@ -215,20 +215,43 @@ def detalle_proveedor(nombre_proveedor: str) -> str:
                 return f"+{num[:2]} {num[2:4]} {num[4:8]} {num[8:]}"
             return num
 
-        lines = [
-            f"Proveedor: {row.nombre_comercial}",
-            f"Descripción: {row.descripcion or 'Sin descripción'}",
-            f"Ejecutivo de ventas: {row.nombre_ejecutivo_ventas or 'No especificado'}",
-        ]
-        if whatsapp_list:
-            lines.append(f"WhatsApp: {', '.join(_fmt_phone(n) for n in whatsapp_list)}")
-            lines.append(f"Link contacto: {whatsapp_links[0]}")
-        if row.pagina_web:
-            lines.append(f"Web: {row.pagina_web}")
-        if row.calificacion_usuarios and row.calificacion_usuarios > 0:
-            lines.append(f"Calificación: {row.calificacion_usuarios}/5")
+        # ── Rich formatting (deterministic — LLM must return verbatim) ──
+        lines = [f"📋 **{row.nombre_comercial}**\n"]
 
-        return "\n".join(lines)
+        descripcion = row.descripcion or ""
+        if descripcion and descripcion != "Sin descripción disponible":
+            lines.append(f"📝 *Descripción:* {descripcion}\n")
+
+        lines.append("📞 **Información de contacto:**")
+
+        ejecutivo = row.nombre_ejecutivo_ventas or "No especificado"
+        if ejecutivo and ejecutivo != "No especificado":
+            lines.append(f"· Ejecutivo de ventas: {ejecutivo}")
+
+        if whatsapp_list:
+            whatsapp_text = ", ".join(_fmt_phone(n) for n in whatsapp_list)
+            lines.append(f"· WhatsApp: {whatsapp_text}")
+            if whatsapp_links:
+                lines.append(f"· 💬 Contactar: {whatsapp_links[0]}")
+        else:
+            lines.append("· WhatsApp: No disponible")
+
+        if row.pagina_web:
+            lines.append(f"· 🌐 Web: {row.pagina_web}")
+
+        if row.calificacion_usuarios and row.calificacion_usuarios > 0:
+            cal = float(row.calificacion_usuarios)
+            stars = "⭐" * int(cal)
+            lines.append(f"\n⭐ Calificación: {stars} ({cal}/5)")
+
+        lines.append("\n¿Te gustaría ver los productos de este proveedor o contactarlo directamente?")
+        lines.append(f"\n💡 También puedes explorar todos los proveedores en nuestra Plataforma: {settings.PLATFORM_URL}")
+
+        return (
+            "DETALLE_PROVEEDOR:\n"
+            + "\n".join(lines)
+            + "\n\nINSTRUCCIÓN: Muestra esta tarjeta TAL CUAL al usuario, sin modificarla."
+        )
 
     except Exception as e:
         logger.error(f"❌ detalle_proveedor error: {e}")
